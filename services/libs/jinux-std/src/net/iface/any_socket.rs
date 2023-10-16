@@ -224,8 +224,8 @@ fn update_udp_socket_state(socket: &RawUdpSocket, pollee: &Pollee) {
 }
 
 // For TCP
-const RECV_BUF_LEN: usize = 65536;
-const SEND_BUF_LEN: usize = 65536;
+pub const RECV_BUF_LEN: usize = 65536;
+pub const SEND_BUF_LEN: usize = 65536;
 
 // For UDP
 const UDP_METADATA_LEN: usize = 256;

@@ -1,22 +1,28 @@
 use crate::events::IoEvents;
-use crate::fs::{file_handle::FileLike, utils::StatusFlags};
-use crate::net::socket::{
-    util::{
-        send_recv_flags::SendRecvFlags, shutdown_cmd::SockShutdownCmd,
-        sock_options::SockOptionName, sockaddr::SocketAddr,
-    },
-    Socket,
+use crate::fs::file_handle::FileLike;
+use crate::fs::utils::StatusFlags;
+use crate::net::socket::util::{
+    send_recv_flags::SendRecvFlags, shutdown_cmd::SockShutdownCmd, sockaddr::SocketAddr,
 };
-use crate::prelude::*;
 use crate::process::signal::Poller;
+use crate::{match_sock_option_ref, prelude::*};
 
+use crate::match_sock_option_mut;
+use crate::net::socket::options::{
+    SockOption, SocketError, SocketOptions, SocketReuseAddr, SocketReusePort, SocketSendBuf,
+};
+use crate::net::socket::Socket;
+
+use self::options::{TcpNoDelay, TcpOptions};
 use self::{connected::ConnectedStream, init::InitStream, listen::ListenStream};
 
 mod connected;
 mod init;
 mod listen;
+pub mod options;
 
 pub struct StreamSocket {
+    options: RwLock<Options>,
     state: RwLock<State>,
 }
 
@@ -29,10 +35,26 @@ enum State {
     Listen(Arc<ListenStream>),
 }
 
+#[derive(Debug, Clone)]
+struct Options {
+    socket: SocketOptions,
+    tcp: TcpOptions,
+}
+
+impl Options {
+    fn new() -> Self {
+        let socket = SocketOptions::new_tcp();
+        let tcp = TcpOptions::new();
+        Options { socket, tcp }
+    }
+}
+
 impl StreamSocket {
     pub fn new(nonblocking: bool) -> Self {
+        let options = Options::new();
         let state = State::Init(Arc::new(InitStream::new(nonblocking)));
         Self {
+            options: RwLock::new(options),
             state: RwLock::new(state),
         }
     }
@@ -165,7 +187,10 @@ impl Socket for StreamSocket {
 
         let accepted_socket = {
             let state = RwLock::new(State::Connected(Arc::new(connected_stream)));
-            Arc::new(StreamSocket { state })
+            Arc::new(StreamSocket {
+                options: RwLock::new(Options::new()),
+                state,
+            })
         };
 
         let socket_addr = remote_endpoint.try_into()?;
@@ -203,10 +228,6 @@ impl Socket for StreamSocket {
         remote_endpoint.try_into()
     }
 
-    fn sock_option(&self, optname: &SockOptionName) -> Result<&[u8]> {
-        return_errno_with_message!(Errno::EINVAL, "getsockopt not implemented");
-    }
-
     fn recvfrom(&self, buf: &mut [u8], flags: SendRecvFlags) -> Result<(usize, SocketAddr)> {
         let connected_stream = match &*self.state.read() {
             State::Connected(connected_stream) => connected_stream.clone(),
@@ -234,5 +255,59 @@ impl Socket for StreamSocket {
             _ => return_errno_with_message!(Errno::EINVAL, "the socket is not connected"),
         };
         connected_stream.sendto(buf, flags)
+    }
+
+    fn option(&self, option: &mut dyn SockOption) -> Result<()> {
+        let options = self.options.read();
+        match_sock_option_mut!(option, {
+            // Socket Options
+            socket_errors: SocketError => {
+                let sock_errors = options.socket.sock_errors();
+                socket_errors.set_output(sock_errors);
+            },
+            socket_reuse_addr: SocketReuseAddr => {
+                let reuse_addr = options.socket.reuse_addr();
+                socket_reuse_addr.set_output(reuse_addr);
+            },
+            socket_send_buf: SocketSendBuf => {
+                let send_buf = options.socket.send_buf();
+                socket_send_buf.set_output(send_buf);
+            },
+            socket_reuse_port: SocketReusePort => {
+                let reuse_port = options.socket.reuse_port();
+                socket_reuse_port.set_output(reuse_port);
+            },
+            // Tcp Options
+            tcp_no_delay: TcpNoDelay => {
+                let no_delay = options.tcp.no_delay();
+                tcp_no_delay.set_output(no_delay);
+            },
+            _ => return_errno_with_message!(Errno::ENOPROTOOPT, "get unknown option")
+        });
+        Ok(())
+    }
+
+    fn set_option(&self, option: &dyn SockOption) -> Result<()> {
+        let mut options = self.options.write();
+        // FIXME: here we have only set the value of the option, without actually
+        // making any real modifications.
+        match_sock_option_ref!(option, {
+            // Socket options
+            socket_reuse_addr: SocketReuseAddr => {
+                let reuse_addr = socket_reuse_addr.input().unwrap();
+                options.socket.set_reuse_addr(*reuse_addr);
+            },
+            socket_reuse_port: SocketReusePort => {
+                let reuse_port = socket_reuse_port.input().unwrap();
+                options.socket.set_reuse_port(*reuse_port);
+            },
+            // Tcp options
+            tcp_no_delay: TcpNoDelay => {
+                let no_delay = tcp_no_delay.input().unwrap();
+                options.tcp.set_no_delay(*no_delay);
+            },
+            _ => return_errno_with_message!(Errno::ENOPROTOOPT, "set unknown option")
+        });
+        Ok(())
     }
 }
