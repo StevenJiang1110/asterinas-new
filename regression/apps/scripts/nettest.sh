@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 NETTEST_DIR=/regression/network
 cd ${NETTEST_DIR}
 echo "Start net test......"
@@ -10,5 +12,6 @@ echo "Start net test......"
 ./unix_server &
 ./unix_client
 ./socketpair
+./sockoption
 
 echo "All net test passed"
