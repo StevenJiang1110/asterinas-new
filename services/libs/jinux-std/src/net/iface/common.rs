@@ -53,8 +53,9 @@ impl IfaceCommon {
     pub(super) fn netmask(&self) -> Option<Ipv4Address> {
         let interface = self.interface.lock_irq_disabled();
         let ip_addrs = interface.ip_addrs();
-        ip_addrs.first().map(|cidr| match cidr {
-            IpCidr::Ipv4(ipv4_cidr) => ipv4_cidr.netmask(),
+        ip_addrs.first().and_then(|cidr| match cidr {
+            IpCidr::Ipv4(ipv4_cidr) => Some(ipv4_cidr.netmask()),
+            IpCidr::Ipv6(_) => None,
         })
     }
 
@@ -130,8 +131,8 @@ impl IfaceCommon {
     }
 
     /// Remove a socket from the interface
-    pub(super) fn remove_socket(&self, handle: SocketHandle) {
-        self.sockets.lock_irq_disabled().remove(handle);
+    pub(super) fn remove_socket(&self, handle: SocketHandle) -> smoltcp::socket::Socket<'static> {
+        self.sockets.lock_irq_disabled().remove(handle)
     }
 
     pub(super) fn poll<D: Device + ?Sized>(&self, device: &mut D) {
@@ -178,8 +179,8 @@ impl IfaceCommon {
         Ok(())
     }
 
-    pub(super) fn remove_bound_socket(&self, socket: Weak<AnyBoundSocket>) {
-        let weak_ref = KeyableWeak::from(socket);
+    pub(super) fn remove_bound_socket(&self, socket: &Weak<AnyBoundSocket>) {
+        let weak_ref = KeyableWeak::from(socket.clone());
         self.bound_sockets.write().remove(&weak_ref);
     }
 }

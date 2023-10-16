@@ -4,7 +4,7 @@ use crate::util::net::{new_raw_socket_option, SockOptionLevel};
 use crate::util::{read_val_from_user, write_val_to_user};
 use crate::{get_socket_without_holding_filetable_lock, log_syscall_entry};
 
-use super::{SyscallReturn, SYS_SETSOCKOPT};
+use super::{SyscallReturn, SYS_GETSOCKOPT};
 
 pub fn sys_getsockopt(
     sockfd: FileDescripter,
@@ -13,7 +13,7 @@ pub fn sys_getsockopt(
     optval: Vaddr,
     optlen_addr: Vaddr,
 ) -> Result<SyscallReturn> {
-    log_syscall_entry!(SYS_SETSOCKOPT);
+    log_syscall_entry!(SYS_GETSOCKOPT);
     let level = SockOptionLevel::try_from(level)?;
     if optval == 0 || optlen_addr == 0 {
         return_errno_with_message!(Errno::EINVAL, "optval or optlen_addr is null pointer");

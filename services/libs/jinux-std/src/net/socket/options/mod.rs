@@ -3,7 +3,8 @@ use crate::prelude::*;
 mod socket;
 
 pub use socket::{
-    SockErrors, SocketError, SocketOptions, SocketReuseAddr, SocketReusePort, SocketSendBuf,
+    LingerOption, SockErrors, SocketError, SocketLinger, SocketOptions, SocketRecvBuf,
+    SocketReuseAddr, SocketReusePort, SocketSendBuf, MIN_RECVBUF, MIN_SENDBUF,
 };
 
 pub trait SockOption: Any + Send + Sync + Debug {

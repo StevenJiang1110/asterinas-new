@@ -34,6 +34,13 @@ pub enum Protocol {
     IPPROTO_MPTCP = 262,    /* Multipath TCP connection		*/
 }
 
+impl Protocol {
+    pub fn try_new(value: i32) -> Result<Self> {
+        Self::try_from(value)
+            .map_err(|_| Error::with_message(Errno::EPROTONOSUPPORT, "protocol not supported"))
+    }
+}
+
 /// Socket types.
 /// From https://elixir.bootlin.com/linux/v6.0.9/source/include/linux/net.h
 #[repr(i32)]
@@ -54,6 +61,13 @@ pub enum SockType {
     SOCK_DCCP = 6,
     /// Linux specific way of getting packets at the dev level
     SOCK_PACKET = 10,
+}
+
+impl SockType {
+    pub fn try_new(value: i32) -> Result<Self> {
+        Self::try_from(value)
+            .map_err(|_| Error::with_message(Errno::ESOCKTNOSUPPORT, "unsupported sock type"))
+    }
 }
 
 pub const SOCK_TYPE_MASK: i32 = 0xf;

@@ -9,11 +9,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdlib.h>
-#define PORT 8080
   
 int main(int argc, char const* argv[])
 {
-    if(argc < 2) {
+    if(argc < 3) {
         perror("Server address is not provided.");
         exit(EXIT_FAILURE);
     }
@@ -26,7 +25,9 @@ int main(int argc, char const* argv[])
         printf("\n Socket creation error \n");
         return -1;
     }
-  
+
+    int PORT = atoi(argv[2]);
+
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
   

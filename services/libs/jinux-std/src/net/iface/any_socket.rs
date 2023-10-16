@@ -1,9 +1,9 @@
+use super::Iface;
+use super::IpEndpoint;
 use crate::events::IoEvents;
 use crate::prelude::*;
 use crate::process::signal::{Pollee, Poller};
-
-use super::Iface;
-use super::IpEndpoint;
+use smoltcp::socket::tcp::State;
 
 pub type RawTcpSocket = smoltcp::socket::tcp::Socket<'static>;
 pub type RawUdpSocket = smoltcp::socket::udp::Socket<'static>;
@@ -15,14 +15,27 @@ pub struct AnyUnboundSocket {
 }
 
 #[allow(clippy::large_enum_variant)]
+#[derive(Debug)]
 pub(super) enum AnyRawSocket {
     Tcp(RawTcpSocket),
     Udp(RawUdpSocket),
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub(super) enum SocketFamily {
     Tcp,
     Udp,
+}
+
+impl From<RawTcpSocket> for AnyUnboundSocket {
+    fn from(tcp_socket: RawTcpSocket) -> Self {
+        debug_assert!(is_tcp_closed(&tcp_socket));
+        let pollee = Pollee::new(IoEvents::empty());
+        Self {
+            socket_family: AnyRawSocket::Tcp(tcp_socket),
+            pollee,
+        }
+    }
 }
 
 impl AnyUnboundSocket {
@@ -87,6 +100,21 @@ pub struct AnyBoundSocket {
     weak_self: Weak<Self>,
 }
 
+impl Drop for AnyBoundSocket {
+    fn drop(&mut self) {
+        match self.socket_family {
+            SocketFamily::Tcp => {
+                debug_assert!(self.raw_with(|socket: &mut RawTcpSocket| is_tcp_closed(socket)));
+            }
+            SocketFamily::Udp => {}
+        }
+
+        self.iface.common().remove_socket(self.handle);
+        self.iface.common().release_port(self.endpoint.port);
+        self.iface.common().remove_bound_socket(&self.weak_ref());
+    }
+}
+
 impl AnyBoundSocket {
     pub(super) fn new(
         iface: Arc<dyn Iface>,
@@ -123,11 +151,19 @@ impl AnyBoundSocket {
         let mut sockets = self.iface.sockets();
         let socket = sockets.get_mut::<RawTcpSocket>(self.handle);
 
+        if socket.is_open() && let Some(current_remote_endpoint) = socket.remote_endpoint() && current_remote_endpoint == remote_endpoint{
+            return Ok(());
+        }
+
+        self.pollee.del_events(IoEvents::ERR);
         let mut iface_inner = self.iface.iface_inner();
         let cx = iface_inner.context();
         socket
             .connect(cx, remote_endpoint, self.endpoint)
-            .map_err(|_| Error::with_message(Errno::ENOBUFS, "send connection request failed"))?;
+            .map_err(|_| {
+                self.pollee.add_events(IoEvents::ERR);
+                Error::with_message(Errno::ECONNREFUSED, "send connection request failed")
+            })?;
         Ok(())
     }
 
@@ -155,25 +191,25 @@ impl AnyBoundSocket {
         self.pollee.poll(mask, poller)
     }
 
-    pub(super) fn weak_ref(&self) -> Weak<Self> {
+    pub fn weak_ref(&self) -> Weak<Self> {
         self.weak_self.clone()
     }
 
-    fn close(&self) {
-        match self.socket_family {
-            SocketFamily::Tcp => self.raw_with(|socket: &mut RawTcpSocket| socket.close()),
-            SocketFamily::Udp => self.raw_with(|socket: &mut RawUdpSocket| socket.close()),
+    /// Turns an `AnyBoundSocket` to AnyUnbound. This method will release port from iface.
+    ///
+    /// # Panic
+    ///
+    /// The strong count of self should be one.
+    pub fn unbound(self: Arc<Self>) -> AnyUnboundSocket {
+        debug_assert!(Arc::strong_count(&self) == 1);
+        let socket = self.iface.common().remove_socket(self.handle);
+        self.iface().common().release_port(self.endpoint.port);
+        self.iface().common().remove_bound_socket(&self.weak_ref());
+        core::mem::forget(self);
+        match socket {
+            smoltcp::socket::Socket::Tcp(tcp_socket) => AnyUnboundSocket::from(tcp_socket),
+            _ => todo!(),
         }
-    }
-}
-
-impl Drop for AnyBoundSocket {
-    fn drop(&mut self) {
-        self.close();
-        self.iface.poll();
-        self.iface.common().remove_socket(self.handle);
-        self.iface.common().release_port(self.endpoint.port);
-        self.iface.common().remove_bound_socket(self.weak_ref());
     }
 }
 
@@ -190,18 +226,10 @@ fn update_tcp_socket_state(socket: &RawTcpSocket, pollee: &Pollee) {
         pollee.del_events(IoEvents::OUT);
     }
 
-    if socket.may_recv() {
-        pollee.del_events(IoEvents::RDHUP);
-    } else {
-        // The receice half was closed
-        pollee.add_events(IoEvents::RDHUP);
-    }
-
-    if socket.is_open() {
-        pollee.del_events(IoEvents::HUP);
-    } else {
-        // The socket is closed
+    if is_tcp_peer_closed(socket) {
         pollee.add_events(IoEvents::HUP);
+    } else {
+        pollee.del_events(IoEvents::HUP);
     }
 }
 
@@ -220,10 +248,22 @@ fn update_udp_socket_state(socket: &RawUdpSocket, pollee: &Pollee) {
 }
 
 // For TCP
-pub const RECV_BUF_LEN: usize = 65536;
-pub const SEND_BUF_LEN: usize = 65536;
+pub const RECV_BUF_LEN: usize = 4096;
+pub const SEND_BUF_LEN: usize = 4096;
 
 // For UDP
 const UDP_METADATA_LEN: usize = 256;
 const UDP_SEND_PAYLOAD_LEN: usize = 65536;
 const UDP_RECEIVE_PAYLOAD_LEN: usize = 65536;
+
+/// Returns whether the peer end of tcp socket is closed. That is to say, the peer end sends a
+/// request to close the connection and local end is not closed yet.
+pub fn is_tcp_peer_closed(socket: &RawTcpSocket) -> bool {
+    socket.state() == State::CloseWait || socket.state() == State::LastAck
+}
+
+/// Returns whether the local end of tcp socket is closed.
+pub fn is_tcp_closed(socket: &RawTcpSocket) -> bool {
+    // FIXME: should we include TimeWait state here?
+    socket.state() == State::Closed
+}

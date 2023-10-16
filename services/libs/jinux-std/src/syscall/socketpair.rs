@@ -9,11 +9,10 @@ use super::SYS_SOCKETPAIR;
 
 pub fn sys_socketpair(domain: i32, type_: i32, protocol: i32, sv: Vaddr) -> Result<SyscallReturn> {
     log_syscall_entry!(SYS_SOCKETPAIR);
-    let domain = SaFamily::try_from(domain)?;
-    let sock_type = SockType::try_from(type_ & SOCK_TYPE_MASK)?;
+    let domain = SaFamily::try_new(domain)?;
+    let sock_type = SockType::try_new(type_ & SOCK_TYPE_MASK)?;
     let sock_flags = SockFlags::from_bits_truncate(type_ & !SOCK_TYPE_MASK);
-    let protocol = Protocol::try_from(protocol)?;
-
+    let protocol = Protocol::try_new(protocol)?;
     debug!(
         "domain = {:?}, sock_type = {:?}, sock_flags = {:?}, protocol = {:?}",
         domain, sock_type, sock_flags, protocol

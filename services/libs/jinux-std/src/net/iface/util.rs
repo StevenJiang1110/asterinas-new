@@ -17,9 +17,9 @@ pub struct BindConfig {
 }
 
 impl BindConfig {
-    pub fn new(endpoint: IpEndpoint, reuse_port: bool) -> Result<Self> {
+    pub fn new(endpoint: IpEndpoint, reuse_port: bool, is_empheral_port: bool) -> Result<Self> {
         let IpEndpoint { addr, port } = endpoint;
-        let port_config = BindPortConfig::new(port, reuse_port)?;
+        let port_config = BindPortConfig::new(port, reuse_port, is_empheral_port)?;
         Ok(Self { addr, port_config })
     }
 
@@ -46,7 +46,7 @@ pub enum BindPortConfig {
 }
 
 impl BindPortConfig {
-    pub fn new(port: u16, can_reuse: bool) -> Result<Self> {
+    pub fn new(port: u16, can_reuse: bool, is_empheral: bool) -> Result<Self> {
         let config = if port != 0 {
             if can_reuse {
                 Self::CanReuse(port)
@@ -55,8 +55,10 @@ impl BindPortConfig {
             }
         } else if can_reuse {
             return_errno_with_message!(Errno::EINVAL, "invalid bind port config");
-        } else {
+        } else if is_empheral {
             Self::Ephemeral
+        } else {
+            return_errno_with_message!(Errno::EINVAL, "port cannot be zero")
         };
         Ok(config)
     }

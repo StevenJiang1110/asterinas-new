@@ -10,10 +10,9 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#define PORT 8080
 int main(int argc, char const* argv[])
 {
-    if(argc < 2) {
+    if(argc < 3) {
         perror("Server address is not provided.");
         exit(EXIT_FAILURE);
     }
@@ -38,6 +37,9 @@ int main(int argc, char const* argv[])
         perror("setsockopt");
         exit(EXIT_FAILURE);
     }
+
+    int PORT = atoi(argv[2]);
+
     address.sin_family = AF_INET;
     address.sin_port = htons(PORT);
     // Convert IPv4 and IPv6 addresses from text to binary form

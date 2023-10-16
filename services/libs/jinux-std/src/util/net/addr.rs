@@ -1,3 +1,5 @@
+use smoltcp::wire::Ipv6Address;
+
 use crate::net::iface::Ipv4Address;
 use crate::net::socket::unix::UnixSocketAddr;
 use crate::net::socket::SocketAddr;
@@ -45,7 +47,7 @@ pub fn read_socket_addr_from_user(addr: Vaddr, addr_len: usize) -> Result<Socket
         SaFamily::AF_INET6 => {
             debug_assert!(addr_len >= core::mem::size_of::<SockAddrInet6>());
             let sock_addr_in6: SockAddrInet6 = read_val_from_user(addr)?;
-            todo!()
+            SocketAddr::from(sock_addr_in6)
         }
         _ => {
             return_errno_with_message!(Errno::EAFNOSUPPORT, "cannot support address for the family")
@@ -80,7 +82,14 @@ pub fn write_socket_addr_to_user(
             write_val_to_user(dest, &sock_addr_in)?;
             write_size as i32
         }
-        SocketAddr::IPv6 => todo!(),
+        SocketAddr::IPv6(addr, port) => {
+            let in6_addr = Inet6Addr::from(*addr);
+            let sock_addr_in6 = SockAddrInet6::new(in6_addr, *port);
+            let write_size = core::mem::size_of::<SockAddrInet6>();
+            debug_assert!(max_len >= write_size);
+            write_val_to_user(dest, &sock_addr_in6)?;
+            write_size as i32
+        }
     };
     if addrlen_ptr != 0 {
         write_val_to_user(addrlen_ptr, &write_size)?;
@@ -202,6 +211,18 @@ pub struct SockAddrInet6 {
     sin6_scope_id: u32,
 }
 
+impl SockAddrInet6 {
+    fn new(addr: Inet6Addr, port: u16) -> Self {
+        Self {
+            sin6_family: SaFamily::AF_INET6 as u16,
+            sin6_port: PortNum::from_u16(port),
+            sin6_flowinfo: 0,
+            sin6_addr: addr,
+            sin6_scope_id: 0,
+        }
+    }
+}
+
 /// Address family. The definition is from https://elixir.bootlin.com/linux/v6.0.9/source/include/linux/socket.h.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, TryFromInt, PartialEq, Eq)]
@@ -263,10 +284,25 @@ pub enum SaFamily {
     AF_MAX = 46, /* For now.. */
 }
 
+impl SaFamily {
+    pub fn try_new(value: i32) -> Result<Self> {
+        Self::try_from(value).map_err(|_| {
+            Error::with_message(Errno::EAFNOSUPPORT, "address family is not supported")
+        })
+    }
+}
+
 impl From<InetAddr> for Ipv4Address {
     fn from(value: InetAddr) -> Self {
         let addr = value.as_bytes();
         Ipv4Address::from_bytes(addr)
+    }
+}
+
+impl From<Inet6Addr> for Ipv6Address {
+    fn from(value: Inet6Addr) -> Self {
+        let addr = value.as_bytes();
+        Ipv6Address::from_bytes(addr)
     }
 }
 
@@ -277,11 +313,26 @@ impl From<Ipv4Address> for InetAddr {
     }
 }
 
+impl From<Ipv6Address> for Inet6Addr {
+    fn from(value: Ipv6Address) -> Self {
+        let bytes = value.as_bytes();
+        Inet6Addr::from_bytes(bytes)
+    }
+}
+
 impl From<SockAddrInet> for SocketAddr {
     fn from(value: SockAddrInet) -> Self {
         let port = value.sin_port_t.as_u16();
         let addr = Ipv4Address::from(value.sin_addr);
         SocketAddr::IPv4(addr, port)
+    }
+}
+
+impl From<SockAddrInet6> for SocketAddr {
+    fn from(value: SockAddrInet6) -> Self {
+        let port = value.sin6_port.as_u16();
+        let addr = Ipv6Address::from(value.sin6_addr);
+        SocketAddr::IPv6(addr, port)
     }
 }
 

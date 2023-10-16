@@ -55,6 +55,7 @@ pub fn sys_fcntl(fd: FileDescripter, cmd: i32, arg: u64) -> Result<SyscallReturn
                 status_flags.insert(StatusFlags::from_bits_truncate(arg as _) & valid_flags_mask);
                 status_flags
             };
+
             file.set_status_flags(new_status_flags)?;
             Ok(SyscallReturn::Return(0))
         }

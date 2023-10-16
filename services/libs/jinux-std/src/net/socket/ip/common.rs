@@ -10,7 +10,9 @@ use crate::net::IFACES;
 use crate::prelude::*;
 
 pub fn get_iface_to_bind(ip_addr: &IpAddress) -> Option<Arc<dyn Iface>> {
-    let IpAddress::Ipv4(ipv4_addr) = ip_addr;
+    let IpAddress::Ipv4(ipv4_addr) = ip_addr else {
+        todo!("support ipv6");
+    };
 
     if *ipv4_addr == Ipv4Address::UNSPECIFIED {
         // FIXME: this is a temporary solution, we bind `0.0.0.0` to localhost iface.
@@ -34,7 +36,9 @@ pub fn get_iface_to_bind(ip_addr: &IpAddress) -> Option<Arc<dyn Iface>> {
 /// If the remote address is the same as that of some iface, we will use the iface.
 /// Otherwise, we will use a default interface.
 fn get_ephemeral_iface(remote_ip_addr: &IpAddress) -> Arc<dyn Iface> {
-    let IpAddress::Ipv4(remote_ipv4_addr) = remote_ip_addr;
+    let IpAddress::Ipv4(remote_ipv4_addr) = remote_ip_addr else {
+        todo!("support ipv6")
+    };
 
     if *remote_ipv4_addr == Ipv4Address::UNSPECIFIED {
         // FIXME: this is a temporary solution, we bind `0.0.0.0` to localhost iface.
@@ -55,10 +59,14 @@ fn get_ephemeral_iface(remote_ip_addr: &IpAddress) -> Arc<dyn Iface> {
     get_virtio_iface()
 }
 
+/// For tcp socket, it can bind to empheral port. i.e., the port is zero and kernel
+/// picks up an random unused port for it.
+/// For udp socket, the port must be a non-zero value.
 pub(super) fn bind_socket(
     unbound_socket: AnyUnboundSocket,
     endpoint: IpEndpoint,
-    can_reuse: bool,
+    reuse_port: bool,
+    is_empheral_port: bool,
 ) -> core::result::Result<Arc<AnyBoundSocket>, (Error, AnyUnboundSocket)> {
     let iface = match get_iface_to_bind(&endpoint.addr) {
         Some(iface) => iface,
@@ -67,7 +75,7 @@ pub(super) fn bind_socket(
             return Err((err, unbound_socket));
         }
     };
-    let bind_config = match BindConfig::new(endpoint, can_reuse) {
+    let bind_config = match BindConfig::new(endpoint, reuse_port, is_empheral_port) {
         Ok(config) => config,
         Err(e) => return Err((e, unbound_socket)),
     };

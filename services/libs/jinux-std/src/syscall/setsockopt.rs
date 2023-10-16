@@ -18,8 +18,8 @@ pub fn sys_setsockopt(
     }
 
     debug!(
-        "level = {:?}, sockfd = {}, optname = {}, optval = {}",
-        level, sockfd, optname, optlen
+        "level = {:?}, sockfd = {}, optname = {}, optval = 0x{:x}, optlen = {}",
+        level, sockfd, optname, optval, optlen
     );
 
     let current = current!();

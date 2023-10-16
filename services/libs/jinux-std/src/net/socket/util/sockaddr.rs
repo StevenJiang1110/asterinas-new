@@ -1,3 +1,5 @@
+use smoltcp::wire::Ipv6Address;
+
 use crate::net::iface::{IpAddress, Ipv4Address};
 use crate::net::iface::{IpEndpoint, IpListenEndpoint};
 use crate::net::socket::unix::UnixSocketAddr;
@@ -9,7 +11,7 @@ type PortNum = u16;
 pub enum SocketAddr {
     Unix(UnixSocketAddr),
     IPv4(Ipv4Address, PortNum),
-    IPv6,
+    IPv6(Ipv6Address, PortNum),
 }
 
 impl TryFrom<SocketAddr> for IpEndpoint {
@@ -18,6 +20,7 @@ impl TryFrom<SocketAddr> for IpEndpoint {
     fn try_from(value: SocketAddr) -> Result<Self> {
         match value {
             SocketAddr::IPv4(addr, port) => Ok(IpEndpoint::new(addr.into_address(), port)),
+            SocketAddr::IPv6(addr, port) => Ok(IpEndpoint::new(addr.into_address(), port)),
             _ => return_errno_with_message!(
                 Errno::EINVAL,
                 "sock addr cannot be converted as IpEndpoint"
@@ -33,6 +36,7 @@ impl TryFrom<IpEndpoint> for SocketAddr {
         let port = endpoint.port;
         let socket_addr = match endpoint.addr {
             IpAddress::Ipv4(addr) => SocketAddr::IPv4(addr, port), // TODO: support IPv6
+            IpAddress::Ipv6(addr) => SocketAddr::IPv6(addr, port),
         };
         Ok(socket_addr)
     }
@@ -46,6 +50,7 @@ impl TryFrom<IpListenEndpoint> for SocketAddr {
         let socket_addr = match value.addr {
             None => return_errno_with_message!(Errno::EINVAL, "address is unspecified"),
             Some(IpAddress::Ipv4(address)) => SocketAddr::IPv4(address, port),
+            Some(IpAddress::Ipv6(address)) => SocketAddr::IPv6(address, port),
         };
         Ok(socket_addr)
     }

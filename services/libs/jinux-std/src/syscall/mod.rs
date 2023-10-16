@@ -487,6 +487,12 @@ pub fn syscall_dispatch(
 macro_rules! log_syscall_entry {
     ($syscall_name: tt) => {
         let syscall_name_str = stringify!($syscall_name);
-        info!("[SYSCALL][id={}][{}]", $syscall_name, syscall_name_str);
+        info!(
+            "[pid={}][tid={}][id={}][{}]",
+            $crate::current!().pid(),
+            $crate::current_thread!().tid(),
+            $syscall_name,
+            syscall_name_str
+        );
     };
 }

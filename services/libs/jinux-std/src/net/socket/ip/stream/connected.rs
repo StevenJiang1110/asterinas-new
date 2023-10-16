@@ -1,16 +1,18 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use crate::events::IoEvents;
-use crate::net::iface::IpEndpoint;
-use crate::process::signal::Poller;
-use crate::{
-    net::{
-        iface::{AnyBoundSocket, RawTcpSocket},
-        poll_ifaces,
-        socket::util::{send_recv_flags::SendRecvFlags, shutdown_cmd::SockShutdownCmd},
-    },
-    prelude::*,
+use smoltcp::socket::tcp::RecvError;
+
+use super::util::{
+    close_and_submit_linger_workitem, close_local_and_poll, is_local_closed, is_peer_closed,
 };
+use crate::events::IoEvents;
+use crate::net::iface::{AnyBoundSocket, IpEndpoint, RawTcpSocket};
+use crate::net::poll_ifaces;
+use crate::net::socket::ip::stream::util::close_local;
+use crate::net::socket::util::send_recv_flags::SendRecvFlags;
+use crate::net::socket::util::shutdown_cmd::SockShutdownCmd;
+use crate::prelude::*;
+use crate::process::signal::Poller;
 
 pub struct ConnectedStream {
     nonblocking: AtomicBool,
@@ -32,11 +34,12 @@ impl ConnectedStream {
     }
 
     pub fn shutdown(&self, cmd: SockShutdownCmd) -> Result<()> {
-        // TODO: deal with cmd
-        self.bound_socket.raw_with(|socket: &mut RawTcpSocket| {
-            socket.close();
-        });
-        poll_ifaces();
+        // TODO: How to deal with shut read?
+
+        if cmd.shut_write() {
+            close_local_and_poll(&self.bound_socket);
+        }
+
         Ok(())
     }
 
@@ -46,14 +49,26 @@ impl ConnectedStream {
         let poller = Poller::new();
         loop {
             let recv_len = self.try_recvfrom(buf, flags)?;
+
+            // Fast path
             if recv_len > 0 {
                 let remote_endpoint = self.remote_endpoint()?;
                 return Ok((recv_len, remote_endpoint));
             }
+
+            // Slow path
             let events = self.bound_socket.poll(IoEvents::IN, Some(&poller));
-            if events.contains(IoEvents::HUP) || events.contains(IoEvents::ERR) {
+
+            // The socket is closed or the peer is closed.
+            if events.contains(IoEvents::HUP) || is_local_closed(&self.bound_socket) {
+                let remote_endpoint = self.remote_endpoint()?;
+                return Ok((recv_len, remote_endpoint));
+            }
+
+            if events.contains(IoEvents::ERR) {
                 return_errno_with_message!(Errno::ENOTCONN, "recv packet fails");
             }
+
             if !events.contains(IoEvents::IN) {
                 if self.is_nonblocking() {
                     return_errno_with_message!(Errno::EAGAIN, "try to recv again");
@@ -66,11 +81,15 @@ impl ConnectedStream {
 
     fn try_recvfrom(&self, buf: &mut [u8], flags: SendRecvFlags) -> Result<usize> {
         poll_ifaces();
-        let res = self.bound_socket.raw_with(|socket: &mut RawTcpSocket| {
-            socket
-                .recv_slice(buf)
-                .map_err(|_| Error::with_message(Errno::ENOTCONN, "fail to recv packet"))
-        });
+        let res =
+            self.bound_socket
+                .raw_with(|socket: &mut RawTcpSocket| match socket.recv_slice(buf) {
+                    Ok(size) => Ok(size),
+                    Err(RecvError::Finished) => Ok(0),
+                    Err(RecvError::InvalidState) => {
+                        return_errno_with_message!(Errno::ENOTCONN, "fail to rece packet")
+                    }
+                });
         self.bound_socket.update_socket_state();
         res
     }
@@ -81,12 +100,21 @@ impl ConnectedStream {
         let poller = Poller::new();
         loop {
             let sent_len = self.try_sendto(buf, flags)?;
+
+            // Close the socket if the socket is in closed by peer.
+            // FIXME: This logic is used to pass gvisor network test. But
+            // I'm sure whether it's really needed.
+            if is_peer_closed(&self.bound_socket) {
+                close_local(&self.bound_socket);
+            }
+
             if sent_len > 0 {
                 return Ok(sent_len);
             }
+
             let events = self.bound_socket.poll(IoEvents::OUT, Some(&poller));
             if events.contains(IoEvents::HUP) || events.contains(IoEvents::ERR) {
-                return_errno_with_message!(Errno::ENOBUFS, "fail to send packets");
+                return_errno_with_message!(Errno::EPIPE, "fail to send packets");
             }
             if !events.contains(IoEvents::OUT) {
                 if self.is_nonblocking() {
@@ -102,7 +130,7 @@ impl ConnectedStream {
         let res = self
             .bound_socket
             .raw_with(|socket: &mut RawTcpSocket| socket.send_slice(buf))
-            .map_err(|_| Error::with_message(Errno::ENOBUFS, "cannot send packet"));
+            .map_err(|_| Error::with_message(Errno::EPIPE, "cannot send packet"));
         match res {
             // We have to explicitly invoke `update_socket_state` when the send buffer becomes
             // full. Note that smoltcp does not think it is an interface event, so calling
@@ -114,10 +142,8 @@ impl ConnectedStream {
         res
     }
 
-    pub fn local_endpoint(&self) -> Result<IpEndpoint> {
-        self.bound_socket
-            .local_endpoint()
-            .ok_or_else(|| Error::with_message(Errno::EINVAL, "does not has remote endpoint"))
+    pub fn local_endpoint(&self) -> IpEndpoint {
+        self.bound_socket.local_endpoint()
     }
 
     pub fn remote_endpoint(&self) -> Result<IpEndpoint> {
@@ -134,5 +160,9 @@ impl ConnectedStream {
 
     pub fn set_nonblocking(&self, nonblocking: bool) {
         self.nonblocking.store(nonblocking, Ordering::Relaxed);
+    }
+
+    pub fn clean_for_close(&self) {
+        close_and_submit_linger_workitem(self.bound_socket.clone())
     }
 }

@@ -15,7 +15,11 @@ pub fn sys_accept(
     let current = current!();
     get_socket_without_holding_filetable_lock!(socket, current, sockfd);
     let (connected_socket, socket_addr) = socket.accept()?;
-    write_socket_addr_to_user(&socket_addr, sockaddr_ptr, addrlen_ptr)?;
+
+    if sockaddr_ptr != 0 {
+        write_socket_addr_to_user(&socket_addr, sockaddr_ptr, addrlen_ptr)?;
+    }
+
     let fd = {
         let mut file_table = current.file_table().lock();
         file_table.insert(connected_socket)

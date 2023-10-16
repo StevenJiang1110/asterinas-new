@@ -9,7 +9,9 @@ mod time;
 mod util;
 mod virtio;
 
-pub use any_socket::{AnyBoundSocket, AnyUnboundSocket, RawTcpSocket, RawUdpSocket};
+pub use any_socket::{
+    is_tcp_closed, is_tcp_peer_closed, AnyBoundSocket, AnyUnboundSocket, RawTcpSocket, RawUdpSocket,
+};
 pub use any_socket::{RECV_BUF_LEN, SEND_BUF_LEN};
 pub use loopback::IfaceLoopback;
 pub use smoltcp::wire::{EthernetAddress, IpAddress, IpEndpoint, IpListenEndpoint, Ipv4Address};

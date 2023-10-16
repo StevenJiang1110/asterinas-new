@@ -9,10 +9,10 @@ use super::SYS_SOCKET;
 
 pub fn sys_socket(domain: i32, type_: i32, protocol: i32) -> Result<SyscallReturn> {
     log_syscall_entry!(SYS_SOCKET);
-    let domain = SaFamily::try_from(domain)?;
-    let sock_type = SockType::try_from(type_ & SOCK_TYPE_MASK)?;
+    let domain = SaFamily::try_new(domain)?;
+    let sock_type = SockType::try_new(type_ & SOCK_TYPE_MASK)?;
     let sock_flags = SockFlags::from_bits_truncate(type_ & !SOCK_TYPE_MASK);
-    let protocol = Protocol::try_from(protocol)?;
+    let protocol = Protocol::try_new(protocol)?;
     debug!(
         "domain = {:?}, sock_type = {:?}, sock_flags = {:?}, protocol = {:?}",
         domain, sock_type, sock_flags, protocol
@@ -23,13 +23,15 @@ pub fn sys_socket(domain: i32, type_: i32, protocol: i32) -> Result<SyscallRetur
             sock_flags.contains(SockFlags::SOCK_NONBLOCK),
         )) as Arc<dyn FileLike>,
         (
-            SaFamily::AF_INET,
+            SaFamily::AF_INET | SaFamily::AF_INET6,
             SockType::SOCK_STREAM,
             Protocol::IPPROTO_IP | Protocol::IPPROTO_TCP,
         ) => Arc::new(StreamSocket::new(nonblocking)) as Arc<dyn FileLike>,
-        (SaFamily::AF_INET, SockType::SOCK_DGRAM, Protocol::IPPROTO_IP | Protocol::IPPROTO_UDP) => {
-            Arc::new(DatagramSocket::new(nonblocking)) as Arc<dyn FileLike>
-        }
+        (
+            SaFamily::AF_INET | SaFamily::AF_INET6,
+            SockType::SOCK_DGRAM,
+            Protocol::IPPROTO_IP | Protocol::IPPROTO_UDP,
+        ) => Arc::new(DatagramSocket::new(nonblocking)) as Arc<dyn FileLike>,
         _ => return_errno_with_message!(Errno::EAFNOSUPPORT, "unsupported domain"),
     };
     let fd = {

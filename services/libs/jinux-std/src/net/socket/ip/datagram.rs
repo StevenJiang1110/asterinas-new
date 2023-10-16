@@ -39,17 +39,21 @@ impl Inner {
         matches!(self, Inner::Bound { .. })
     }
 
-    fn bind(&mut self, endpoint: IpEndpoint) -> Result<()> {
+    fn bind(&mut self, endpoint: IpEndpoint, is_empheral_port: bool) -> Result<()> {
         if self.is_bound() {
             return_errno_with_message!(Errno::EINVAL, "the socket is already bound to an address");
         }
+
         let unbound_socket = match self {
             Inner::Unbound(unbound_socket) => unbound_socket,
             _ => unreachable!(),
         };
-        let bound_socket =
-            unbound_socket.try_take_with(|socket| bind_socket(socket, endpoint, false))?;
+
+        let bound_socket = unbound_socket
+            .try_take_with(|socket| bind_socket(socket, endpoint, false, is_empheral_port))?;
+
         let bound_endpoint = bound_socket.local_endpoint();
+
         bound_socket.raw_with(|socket: &mut RawUdpSocket| {
             socket
                 .bind(bound_endpoint)
@@ -66,7 +70,7 @@ impl Inner {
 
     fn bind_to_ephemeral_endpoint(&mut self, remote_endpoint: &IpEndpoint) -> Result<()> {
         let endpoint = get_ephemeral_endpoint(remote_endpoint);
-        self.bind(endpoint)
+        self.bind(endpoint, true)
     }
 
     fn set_remote_endpoint(&mut self, endpoint: IpEndpoint) -> Result<()> {
@@ -206,20 +210,34 @@ impl FileLike for DatagramSocket {
     }
 }
 
+impl Drop for DatagramSocket {
+    fn drop(&mut self) {
+        let inner = self.inner.read();
+        let Inner::Bound { bound_socket, .. } = &*inner else {
+            return;
+        };
+        bound_socket.raw_with(|socket: &mut RawUdpSocket| socket.close());
+        bound_socket.iface().poll();
+        // bound_socket.release_iface();
+    }
+}
+
 impl Socket for DatagramSocket {
     fn bind(&self, sockaddr: SocketAddr) -> Result<()> {
         let endpoint = sockaddr.try_into()?;
-        self.inner.write().bind(endpoint)
+        self.inner.write().bind(endpoint, false)
     }
 
     fn connect(&self, sockaddr: SocketAddr) -> Result<()> {
         let remote_endpoint: IpEndpoint = sockaddr.try_into()?;
+
         let mut inner = self.inner.write();
-        if !self.is_bound() {
+        if !inner.is_bound() {
             inner.bind_to_ephemeral_endpoint(&remote_endpoint)?
         }
         inner.set_remote_endpoint(remote_endpoint)?;
         inner.update_socket_state();
+
         Ok(())
     }
 

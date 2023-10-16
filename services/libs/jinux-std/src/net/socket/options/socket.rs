@@ -1,3 +1,5 @@
+use core::time::Duration;
+
 use crate::impl_sock_options;
 use crate::net::iface::{RECV_BUF_LEN, SEND_BUF_LEN};
 use crate::prelude::*;
@@ -11,6 +13,7 @@ pub struct SocketOptions {
     reuse_port: bool,
     send_buf: u32,
     recv_buf: u32,
+    linger: LingerOption,
 }
 
 impl SocketOptions {
@@ -21,15 +24,21 @@ impl SocketOptions {
             reuse_port: false,
             send_buf: SEND_BUF_LEN as u32,
             recv_buf: RECV_BUF_LEN as u32,
+            linger: LingerOption::default(),
         }
     }
 }
+
+pub const MIN_SENDBUF: u32 = 2304;
+pub const MIN_RECVBUF: u32 = 2304;
 
 impl_sock_options!(
     pub struct SocketReuseAddr<input = bool, output = bool> {}
     pub struct SocketReusePort<input = bool, output = bool> {}
     pub struct SocketSendBuf<input = u32, output = u32> {}
+    pub struct SocketRecvBuf<input = u32, output = u32> {}
     pub struct SocketError<input = (), output = SockErrors> {}
+    pub struct SocketLinger<input = LingerOption, output = LingerOption> {}
 );
 
 #[derive(Debug, Clone, Copy)]
@@ -51,7 +60,31 @@ impl SockErrors {
     pub const fn as_i32(&self) -> i32 {
         match &self.0 {
             None => 0,
-            Some(err) => -(err.error() as i32),
+            Some(err) => err.error() as i32,
         }
+    }
+
+    pub fn set_error(&mut self, error: Error) {
+        self.0 = Some(error);
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct LingerOption {
+    is_on: bool,
+    timeout: Duration,
+}
+
+impl LingerOption {
+    pub fn new(is_on: bool, timeout: Duration) -> Self {
+        Self { is_on, timeout }
+    }
+
+    pub fn is_on(&self) -> bool {
+        self.is_on
+    }
+
+    pub fn timeout(&self) -> Duration {
+        self.timeout
     }
 }

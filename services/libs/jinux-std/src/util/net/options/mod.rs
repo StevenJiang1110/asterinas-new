@@ -27,6 +27,8 @@ macro_rules! impl_raw_sock_option {
     ($option:ty) => {
         impl RawSockOption for $option {
             fn read_input(&mut self, vmar: &Vmar<Full>, addr: Vaddr, max_len: u32) -> Result<()> {
+                use jinux_frame::vm::VmIo;
+
                 let input = vmar.read_val(addr)?;
 
                 if (max_len as usize) < core::mem::size_of_val(&input) {
@@ -39,6 +41,8 @@ macro_rules! impl_raw_sock_option {
             }
 
             fn write_output(&self, vmar: &Vmar<Full>, addr: Vaddr, max_len: u32) -> Result<usize> {
+                use jinux_frame::vm::VmIo;
+
                 let output = self.output().unwrap();
 
                 let write_len = core::mem::size_of_val(output);

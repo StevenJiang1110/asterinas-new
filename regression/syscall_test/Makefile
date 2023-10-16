@@ -1,4 +1,4 @@
-TESTS ?= open_test read_test statfs_test chmod_test pty_test
+TESTS ?= open_test read_test statfs_test chmod_test pty_test socket_inet_loopback_test tcp_socket_test
 
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CUR_DIR := $(patsubst %/,%,$(dir $(MKFILE_PATH)))

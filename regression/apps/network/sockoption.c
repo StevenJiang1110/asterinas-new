@@ -24,6 +24,19 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    // Set recvbuf size
+    int recvbuf = 0;
+    socklen_t recvbuf_len = sizeof(recvbuf);
+    if (setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &recvbuf, recvbuf_len) < 0) {
+        perror("Setting SO_RCVBUF option failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &recvbuf, &recvbuf_len) < 0) {
+        perror("Getting SO_RCVBUF option failed");
+        exit(EXIT_FAILURE);
+    }
+
     int error;
     socklen_t error_len = sizeof(error);
     if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &error, &error_len ) < 0 || error_len != sizeof(error) || error != 0) {

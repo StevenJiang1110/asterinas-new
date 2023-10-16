@@ -1,14 +1,18 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use smoltcp::wire::IpAddress;
+use smoltcp::wire::{IpAddress, Ipv4Address};
 
 use crate::events::IoEvents;
 use crate::net::iface::{AnyBoundSocket, AnyUnboundSocket, Iface, IpEndpoint};
 use crate::net::socket::ip::always_some::AlwaysSome;
 use crate::net::socket::ip::common::{bind_socket, get_ephemeral_endpoint};
+use crate::net::socket::options::SockErrors;
+use crate::net::socket::SockShutdownCmd;
 use crate::net::{get_localhost_iface, poll_ifaces};
 use crate::prelude::*;
 use crate::process::signal::Poller;
+
+use super::util::{close_and_submit_linger_workitem, close_local_and_poll, is_local_closed};
 
 pub struct InitStream {
     inner: RwLock<Inner>,
@@ -19,7 +23,7 @@ enum Inner {
     Unbound(AlwaysSome<AnyUnboundSocket>),
     Bound(AlwaysSome<Arc<AnyBoundSocket>>),
     Connecting {
-        bound_socket: Arc<AnyBoundSocket>,
+        bound_socket: AlwaysSome<Arc<AnyBoundSocket>>,
         remote_endpoint: IpEndpoint,
     },
 }
@@ -38,8 +42,8 @@ impl Inner {
         } else {
             return_errno_with_message!(Errno::EINVAL, "the socket is already bound to an address");
         };
-        let bound_socket =
-            unbound_socket.try_take_with(|raw_socket| bind_socket(raw_socket, endpoint, false))?;
+        let bound_socket = unbound_socket
+            .try_take_with(|raw_socket| bind_socket(raw_socket, endpoint, false, true))?;
         bound_socket.update_socket_state();
         *self = Inner::Bound(AlwaysSome::new(bound_socket));
         Ok(())
@@ -63,7 +67,7 @@ impl Inner {
             Inner::Bound(bound_socket) => {
                 bound_socket.do_connect(new_remote_endpoint)?;
                 *self = Inner::Connecting {
-                    bound_socket: bound_socket.take(),
+                    bound_socket: AlwaysSome::new(bound_socket.take()),
                     remote_endpoint: new_remote_endpoint,
                 };
             }
@@ -73,8 +77,9 @@ impl Inner {
 
     fn bound_socket(&self) -> Option<&Arc<AnyBoundSocket>> {
         match self {
-            Inner::Bound(bound_socket) => Some(bound_socket),
-            Inner::Connecting { bound_socket, .. } => Some(bound_socket),
+            Inner::Bound(bound_socket) | Inner::Connecting { bound_socket, .. } => {
+                Some(bound_socket)
+            }
             _ => None,
         }
     }
@@ -109,6 +114,38 @@ impl Inner {
             None
         }
     }
+
+    fn shutdown(&mut self, cmd: SockShutdownCmd) -> Result<()> {
+        // TODO: how to shut read?
+        if !cmd.shut_write() {
+            return Ok(());
+        }
+
+        match self {
+            Self::Unbound(..) => Ok(()),
+            Self::Bound(bound_socket) => {
+                close_local_and_poll(bound_socket);
+                Ok(())
+            }
+            Self::Connecting { bound_socket, .. } => {
+                close_local_and_poll(bound_socket);
+                Ok(())
+            }
+        }
+    }
+
+    fn unbound(&mut self) {
+        match self {
+            Inner::Unbound(_) => (),
+            Inner::Bound(bound_socket) => unreachable!("Only connecting socket can be unbound."),
+            Inner::Connecting { bound_socket, .. } => {
+                close_local_and_poll(bound_socket);
+                let bound_socket = bound_socket.take();
+                let unbound_socket = bound_socket.unbound();
+                *self = Inner::Unbound(AlwaysSome::new(unbound_socket));
+            }
+        }
+    }
 }
 
 impl InitStream {
@@ -129,7 +166,19 @@ impl InitStream {
         self.inner.write().bind(endpoint)
     }
 
-    pub fn connect(&self, remote_endpoint: &IpEndpoint) -> Result<()> {
+    pub fn bind_to_ephemeral_endpoint(&self) -> Result<()> {
+        let endpoint = IpEndpoint {
+            addr: IpAddress::Ipv4(Ipv4Address::UNSPECIFIED),
+            port: 0,
+        };
+        self.inner.write().bind(endpoint)
+    }
+
+    pub fn connect(
+        &self,
+        remote_endpoint: &IpEndpoint,
+        sock_errors: &mut SockErrors,
+    ) -> Result<()> {
         let remote_endpoint = if remote_endpoint.addr.is_unspecified() {
             // FIXME: this is a temporary solution, when trying to connect to `0.0.0.0`,
             // sending connecting request to localhost.
@@ -142,24 +191,58 @@ impl InitStream {
         if !self.is_bound() {
             self.inner
                 .write()
-                .bind_to_ephemeral_endpoint(&remote_endpoint)?
+                .bind_to_ephemeral_endpoint(&remote_endpoint)?;
         }
-        self.inner.write().do_connect(remote_endpoint)?;
+
+        let mut inner = self.inner.write();
+        inner.do_connect(remote_endpoint).map_err(|e| {
+            if self.is_nonblocking() {
+                sock_errors.set_error(e);
+                Error::with_message(
+                    Errno::EINPROGRESS,
+                    "the socket is non blocking and connection failed",
+                )
+            } else {
+                e
+            }
+        })?;
+
+        drop(inner);
+
+        if self.is_nonblocking() {
+            let events = self.inner.read().poll(IoEvents::OUT | IoEvents::IN, None);
+            if events.contains(IoEvents::IN) || events.contains(IoEvents::OUT) {
+                return Ok(());
+            }
+            // FIXME: this function should be done in a work item, instead of blocking current thread.
+            poll_ifaces();
+            return_errno_with_message!(Errno::EINPROGRESS, "try connect again");
+        }
+
         // Wait until building connection
         let poller = Poller::new();
         loop {
             poll_ifaces();
+
             let events = self
                 .inner
                 .read()
                 .poll(IoEvents::OUT | IoEvents::IN, Some(&poller));
+
             if events.contains(IoEvents::IN) || events.contains(IoEvents::OUT) {
                 return Ok(());
-            } else if !events.is_empty() {
-                return_errno_with_message!(Errno::ECONNREFUSED, "connect refused");
-            } else if self.is_nonblocking() {
-                return_errno_with_message!(Errno::EAGAIN, "try connect again");
             } else {
+                let is_closed = {
+                    let inner = self.inner.read();
+                    let bound_socket = inner.bound_socket().unwrap();
+                    is_local_closed(bound_socket)
+                };
+
+                if is_closed {
+                    self.inner.write().unbound();
+                    return_errno_with_message!(Errno::ECONNREFUSED, "connection is refused");
+                }
+
                 // FIXME: deal with connecting timeout
                 poller.wait()?;
             }
@@ -177,7 +260,7 @@ impl InitStream {
         self.inner
             .read()
             .remote_endpoint()
-            .ok_or_else(|| Error::with_message(Errno::EINVAL, "does not has remote endpoint"))
+            .ok_or_else(|| Error::with_message(Errno::ENOTCONN, "does not has remote endpoint"))
     }
 
     pub(super) fn poll(&self, mask: IoEvents, poller: Option<&Poller>) -> IoEvents {
@@ -194,5 +277,18 @@ impl InitStream {
 
     pub fn set_nonblocking(&self, nonblocking: bool) {
         self.is_nonblocking.store(nonblocking, Ordering::Relaxed);
+    }
+
+    pub fn shutdown(&self, cmd: SockShutdownCmd) -> Result<()> {
+        self.inner.write().shutdown(cmd)
+    }
+
+    pub fn clean_for_close(&self) {
+        match &*self.inner.read() {
+            Inner::Unbound(_) => {}
+            Inner::Bound(bound_socket) | Inner::Connecting { bound_socket, .. } => {
+                close_and_submit_linger_workitem((*bound_socket).clone())
+            }
+        }
     }
 }
