@@ -13,7 +13,7 @@ pub use any_socket::{AnyBoundSocket, AnyUnboundSocket, RawTcpSocket, RawUdpSocke
 pub use any_socket::{RECV_BUF_LEN, SEND_BUF_LEN};
 pub use loopback::IfaceLoopback;
 pub use smoltcp::wire::{EthernetAddress, IpAddress, IpEndpoint, IpListenEndpoint, Ipv4Address};
-pub use util::{spawn_background_poll_thread, BindPortConfig};
+pub use util::{spawn_background_poll_thread, BindConfig};
 pub use virtio::IfaceVirtio;
 
 /// Network interface.
@@ -39,7 +39,7 @@ pub trait Iface: internal::IfaceInternal + Send + Sync {
     fn bind_socket(
         &self,
         socket: AnyUnboundSocket,
-        config: BindPortConfig,
+        config: BindConfig,
     ) -> core::result::Result<Arc<AnyBoundSocket>, (Error, AnyUnboundSocket)> {
         let common = self.common();
         let socket_type_inner = socket.socket_family();
