@@ -73,6 +73,7 @@ use jinux_frame::cpu::UserContext;
 
 use self::accept::sys_accept;
 use self::bind::sys_bind;
+use self::chown::sys_chown;
 use self::connect::sys_connect;
 use self::execve::sys_execveat;
 use self::getgroups::sys_getgroups;
@@ -109,6 +110,7 @@ mod bind;
 mod brk;
 mod chdir;
 mod chmod;
+mod chown;
 mod clock_gettime;
 mod clock_nanosleep;
 mod clone;
@@ -293,6 +295,7 @@ define_syscall_nums!(
     SYS_READLINK = 89,
     SYS_CHMOD = 90,
     SYS_FCHMOD = 91,
+    SYS_CHOWN = 92,
     SYS_UMASK = 95,
     SYS_GETTIMEOFDAY = 96,
     SYS_GETUID = 102,
@@ -468,6 +471,7 @@ pub fn syscall_dispatch(
         SYS_READLINK => syscall_handler!(3, sys_readlink, args),
         SYS_CHMOD => syscall_handler!(2, sys_chmod, args),
         SYS_FCHMOD => syscall_handler!(2, sys_fchmod, args),
+        SYS_CHOWN => syscall_handler!(3, sys_chown, args),
         SYS_UMASK => syscall_handler!(1, sys_umask, args),
         SYS_GETTIMEOFDAY => syscall_handler!(1, sys_gettimeofday, args),
         SYS_GETUID => syscall_handler!(0, sys_getuid),

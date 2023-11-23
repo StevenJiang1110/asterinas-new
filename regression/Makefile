@@ -20,7 +20,7 @@ INITRAMFS_ALL_DIRS := \
 	$(INITRAMFS)/regression \
 	$(INITRAMFS_EMPTY_DIRS)
 
-.PHONY: all clean
+.PHONY: all clean benchmark
 
 all: build
 
@@ -71,7 +71,10 @@ endif
 	@echo "Generating the initramfs image..."
 	@(cd $(INITRAMFS); find . | cpio -o -H newc | gzip) > $@
 
-build: $(INITRAMFS_IMAGE)
+build: $(INITRAMFS_IMAGE) benchmark
 
+benchmark:
+	@make --no-print-directory -C benchmark
+	
 clean:
 	@rm -rf $(BUILD_DIR)

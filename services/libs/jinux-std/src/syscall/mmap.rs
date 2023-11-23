@@ -72,7 +72,7 @@ fn mmap_anonymous_vmo(
     debug_assert!(offset == 0);
 
     // TODO: implement features presented by other flags.
-    if option.typ() != MMapType::Private {
+    if option.typ() != MMapType::Private && option.typ() != MMapType::Shared {
         panic!("Unsupported mmap flags {:?} now", option);
     }
 
@@ -85,6 +85,10 @@ fn mmap_anonymous_vmo(
     if option.flags().contains(MMapFlags::MAP_FIXED) {
         vmar_map_options = vmar_map_options.offset(addr).can_overwrite(true);
     }
+    if option.typ() == MMapType::Shared {
+        vmar_map_options = vmar_map_options.is_shared(true);
+    }
+
     let map_addr = vmar_map_options.build()?;
     debug!("map addr = 0x{:x}", map_addr);
     Ok(map_addr)
