@@ -29,11 +29,15 @@ pub fn sys_prctl(option: i32, arg2: u64, arg3: u64, arg4: u64, arg5: u64) -> Res
                 thread_name.set_name(&new_thread_name)?;
             }
         }
+        PrctlCmd::PR_SET_DUMPABLE => {
+            // TODO
+        }
         _ => todo!(),
     }
     Ok(SyscallReturn::Return(0))
 }
 
+const PR_SET_DUMPABLE: i32 = 3;
 const PR_SET_NAME: i32 = 15;
 const PR_GET_NAME: i32 = 16;
 const PR_SET_TIMERSLACK: i32 = 29;
@@ -42,6 +46,7 @@ const PR_GET_TIMERSLACK: i32 = 30;
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy)]
 pub enum PrctlCmd {
+    PR_SET_DUMPABLE,
     PR_SET_NAME(Vaddr),
     PR_GET_NAME(Vaddr),
     PR_SET_TIMERSLACK(u64),
@@ -51,6 +56,7 @@ pub enum PrctlCmd {
 impl PrctlCmd {
     fn from_args(option: i32, arg2: u64, arg3: u64, arg4: u64, arg5: u64) -> Result<PrctlCmd> {
         match option {
+            PR_SET_DUMPABLE => Ok(PrctlCmd::PR_SET_DUMPABLE),
             PR_SET_NAME => Ok(PrctlCmd::PR_SET_NAME(arg2 as _)),
             PR_GET_NAME => Ok(PrctlCmd::PR_GET_NAME(arg2 as _)),
             PR_GET_TIMERSLACK => todo!(),

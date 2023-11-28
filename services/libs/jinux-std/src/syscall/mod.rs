@@ -86,7 +86,9 @@ use self::getsockname::sys_getsockname;
 use self::getsockopt::sys_getsockopt;
 use self::listen::sys_listen;
 use self::pread64::sys_pread64;
+use self::pwrite64::sys_pwrite64;
 use self::recvfrom::sys_recvfrom;
+use self::rt_sigsuspend::sys_rt_sigsuspend;
 use self::sendto::sys_sendto;
 use self::setfsgid::sys_setfsgid;
 use self::setfsuid::sys_setfsuid;
@@ -161,6 +163,7 @@ mod poll;
 mod prctl;
 mod pread64;
 mod prlimit64;
+mod pwrite64;
 mod read;
 mod readlink;
 mod recvfrom;
@@ -169,6 +172,7 @@ mod rmdir;
 mod rt_sigaction;
 mod rt_sigprocmask;
 mod rt_sigreturn;
+mod rt_sigsuspend;
 mod sched_yield;
 mod select;
 mod sendto;
@@ -252,6 +256,7 @@ define_syscall_nums!(
     SYS_RT_SIGRETRUN = 15,
     SYS_IOCTL = 16,
     SYS_PREAD64 = 17,
+    SYS_PWRITE64 = 18,
     SYS_WRITEV = 20,
     SYS_ACCESS = 21,
     SYS_PIPE = 22,
@@ -319,6 +324,7 @@ define_syscall_nums!(
     SYS_SETFSUID = 122,
     SYS_SETFSGID = 123,
     SYS_GETSID = 124,
+    SYS_RT_SIGSUSPEND = 130,
     SYS_STATFS = 137,
     SYS_FSTATFS = 138,
     SYS_PRCTL = 157,
@@ -428,6 +434,7 @@ pub fn syscall_dispatch(
         SYS_RT_SIGRETRUN => syscall_handler!(0, sys_rt_sigreturn, context),
         SYS_IOCTL => syscall_handler!(3, sys_ioctl, args),
         SYS_PREAD64 => syscall_handler!(4, sys_pread64, args),
+        SYS_PWRITE64 => syscall_handler!(4, sys_pwrite64, args),
         SYS_WRITEV => syscall_handler!(3, sys_writev, args),
         SYS_ACCESS => syscall_handler!(2, sys_access, args),
         SYS_PIPE => syscall_handler!(1, sys_pipe, args),
@@ -495,6 +502,7 @@ pub fn syscall_dispatch(
         SYS_SETFSUID => syscall_handler!(1, sys_setfsuid, args),
         SYS_SETFSGID => syscall_handler!(1, sys_setfsgid, args),
         SYS_GETSID => syscall_handler!(1, sys_getsid, args),
+        SYS_RT_SIGSUSPEND => syscall_handler!(2, sys_rt_sigsuspend, args),
         SYS_STATFS => syscall_handler!(2, sys_statfs, args),
         SYS_FSTATFS => syscall_handler!(2, sys_fstatfs, args),
         SYS_PRCTL => syscall_handler!(5, sys_prctl, args),

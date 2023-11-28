@@ -129,17 +129,24 @@ impl ConnectedStream {
     fn try_sendto(&self, buf: &[u8], flags: SendRecvFlags) -> Result<usize> {
         let res = self
             .bound_socket
-            .raw_with(|socket: &mut RawTcpSocket| socket.send_slice(buf))
-            .map_err(|_| Error::with_message(Errno::EPIPE, "cannot send packet"));
+            .raw_with(|socket: &mut RawTcpSocket| socket.send_slice(buf));
+        // .map_err(|_| Error::with_message(Errno::EPIPE, "cannot send packet"));
         match res {
             // We have to explicitly invoke `update_socket_state` when the send buffer becomes
             // full. Note that smoltcp does not think it is an interface event, so calling
             // `poll_ifaces` alone is not enough.
             Ok(0) => self.bound_socket.update_socket_state(),
             Ok(_) => poll_ifaces(),
-            _ => (),
+            Err(e) => {
+                let state = self
+                    .bound_socket
+                    .raw_with(|socket: &mut RawTcpSocket| socket.state());
+                println!("state = {:?}", state);
+                println!("e = {:?}", e);
+                todo!()
+            }
         };
-        res
+        Ok(res.unwrap())
     }
 
     pub fn local_endpoint(&self) -> IpEndpoint {

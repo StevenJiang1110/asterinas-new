@@ -328,7 +328,7 @@ impl<R> VmoChildOptions<R, VmoCowChild> {
     /// Any pages that are beyond the parent's range are initially all zeros.
     pub fn new_cow(parent: Vmo<R>, range: Range<usize>) -> Self {
         Self {
-            flags: parent.flags() & Self::PARENT_FLAGS_MASK,
+            flags: parent.flags(),
             parent,
             range,
             marker: PhantomData,

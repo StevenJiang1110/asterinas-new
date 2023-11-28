@@ -25,6 +25,8 @@ pub enum IoctlCmd {
     FIONBIO = 0x5421,
     /// the calling process gives up this controlling terminal
     TIOCNOTTY = 0x5422,
+    /// Set the file in async io mode.
+    FIOASYNC = 0x5452,
     /// Get Pty Number
     TIOCGPTN = 0x80045430,
     /// Lock/unlock Pty

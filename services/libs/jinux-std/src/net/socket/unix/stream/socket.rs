@@ -1,7 +1,7 @@
 use crate::events::IoEvents;
 use crate::fs::file_handle::FileLike;
 use crate::fs::fs_resolver::FsPath;
-use crate::fs::utils::{Dentry, InodeType, StatusFlags};
+use crate::fs::utils::{Dentry, InodeType, StatusFlags, IoctlCmd};
 use crate::net::socket::unix::addr::UnixSocketAddrBound;
 use crate::net::socket::unix::UnixSocketAddr;
 use crate::net::socket::util::send_recv_flags::SendRecvFlags;
@@ -128,6 +128,23 @@ impl FileLike for UnixStreamSocket {
             State::Connected(connected) => connected.set_nonblocking(is_nonblocking),
         }
         Ok(())
+    }
+
+    fn ioctl(&self, cmd: IoctlCmd, arg: usize) -> Result<i32> {
+        match cmd {
+            IoctlCmd::FIONBIO => {
+                let inner = self.0.read();
+                match &*inner {
+                    State::Init(init) => init.set_nonblocking(true),
+                    State::Listen(listen) => listen.set_nonblocking(true),
+                    State::Connected(connected) => connected.set_nonblocking(true),
+                }
+            },
+            IoctlCmd::FIOASYNC => {},
+            _ => todo!()
+        }
+
+        Ok(0)
     }
 }
 

@@ -26,6 +26,9 @@ pub fn sys_write(
     let mut buffer = vec![0u8; user_buf_len];
     read_bytes_from_user(user_buf_ptr, &mut buffer)?;
     debug!("write content = {:?}", buffer);
+    if let Ok(str) = core::str::from_utf8(&buffer) {
+        debug!("write content = {}", str);
+    }
     let write_len = file.write(&buffer)?;
     Ok(SyscallReturn::Return(write_len as _))
 }

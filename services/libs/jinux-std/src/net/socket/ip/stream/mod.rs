@@ -4,6 +4,7 @@ use smoltcp::wire::IpEndpoint;
 use crate::events::IoEvents;
 use crate::fs::file_handle::FileLike;
 use crate::fs::utils::{IoctlCmd, StatusFlags};
+use crate::net::iface::RawTcpSocket;
 use crate::net::socket::ip::tcp_options::TcpWindowClamp;
 use crate::net::socket::util::{
     send_recv_flags::SendRecvFlags, shutdown_cmd::SockShutdownCmd, sockaddr::SocketAddr,
@@ -111,6 +112,9 @@ impl StreamSocket {
         let connected_stream = {
             let nonblocking = init_stream.is_nonblocking();
             let bound_socket = init_stream.bound_socket().unwrap();
+
+            let state = bound_socket.raw_with(|socket: &mut RawTcpSocket| socket.state());
+            println!("state = {:?}", state);
             let remote_endpoint = init_stream.remote_endpoint()?;
             Arc::new(ConnectedStream::new(
                 nonblocking,
@@ -118,6 +122,7 @@ impl StreamSocket {
                 remote_endpoint,
             ))
         };
+
         *self.state.write() = State::Connected(connected_stream);
         Ok(())
     }
@@ -480,9 +485,10 @@ impl Socket for StreamSocket {
     }
 }
 
-impl Drop for State {
+impl Drop for StreamSocket {
     fn drop(&mut self) {
-        match self {
+        println!("drop socket");
+        match &*self.state.read() {
             State::Init(init_stream) => init_stream.clean_for_close(),
             State::Connected(connected_stream) => connected_stream.clean_for_close(),
             State::Listen(listen_stream) => listen_stream.clean_for_close(),

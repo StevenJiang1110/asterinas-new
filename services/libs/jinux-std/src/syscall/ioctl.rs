@@ -8,6 +8,7 @@ use super::SYS_IOCTL;
 
 pub fn sys_ioctl(fd: FileDescripter, cmd: u32, arg: Vaddr) -> Result<SyscallReturn> {
     log_syscall_entry!(SYS_IOCTL);
+    debug!("raw_cmd = 0x{:x}", cmd);
     let ioctl_cmd = IoctlCmd::try_from(cmd)?;
     debug!(
         "fd = {}, ioctl_cmd = {:?}, arg = 0x{:x}",

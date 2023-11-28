@@ -7,6 +7,7 @@ use crate::{
 
 pub fn sys_fcntl(fd: FileDescripter, cmd: i32, arg: u64) -> Result<SyscallReturn> {
     log_syscall_entry!(SYS_FCNTL);
+    debug!("raw cmd = {:?}", cmd);
     let fcntl_cmd = FcntlCmd::try_from(cmd)?;
     debug!("fd = {}, cmd = {:?}, arg = {}", fd, fcntl_cmd, arg);
     match fcntl_cmd {
@@ -59,6 +60,14 @@ pub fn sys_fcntl(fd: FileDescripter, cmd: i32, arg: u64) -> Result<SyscallReturn
             file.set_status_flags(new_status_flags)?;
             Ok(SyscallReturn::Return(0))
         }
+        FcntlCmd::F_SETOWN => {
+            // TODO
+            Ok(SyscallReturn::Return(0))
+        },
+        FcntlCmd::F_GETOWN => {
+            // TODO
+            Ok(SyscallReturn::Return(0))
+        }
         _ => todo!(),
     }
 }
@@ -72,5 +81,7 @@ enum FcntlCmd {
     F_SETFD = 2,
     F_GETFL = 3,
     F_SETFL = 4,
+    F_SETOWN = 8, // For socket
+    F_GETOWN = 9, // For socket
     F_DUPFD_CLOEXEC = 1030,
 }
