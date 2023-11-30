@@ -63,7 +63,7 @@ pub fn sys_fcntl(fd: FileDescripter, cmd: i32, arg: u64) -> Result<SyscallReturn
         FcntlCmd::F_SETOWN => {
             // TODO
             Ok(SyscallReturn::Return(0))
-        },
+        }
         FcntlCmd::F_GETOWN => {
             // TODO
             Ok(SyscallReturn::Return(0))

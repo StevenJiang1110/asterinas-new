@@ -1,7 +1,7 @@
 use crate::events::IoEvents;
 use crate::fs::file_handle::FileLike;
 use crate::fs::fs_resolver::FsPath;
-use crate::fs::utils::{Dentry, InodeType, StatusFlags, IoctlCmd};
+use crate::fs::utils::{Dentry, InodeType, IoctlCmd, StatusFlags};
 use crate::net::socket::unix::addr::UnixSocketAddrBound;
 use crate::net::socket::unix::UnixSocketAddr;
 use crate::net::socket::util::send_recv_flags::SendRecvFlags;
@@ -139,9 +139,9 @@ impl FileLike for UnixStreamSocket {
                     State::Listen(listen) => listen.set_nonblocking(true),
                     State::Connected(connected) => connected.set_nonblocking(true),
                 }
-            },
-            IoctlCmd::FIOASYNC => {},
-            _ => todo!()
+            }
+            IoctlCmd::FIOASYNC => {}
+            _ => todo!(),
         }
 
         Ok(0)
