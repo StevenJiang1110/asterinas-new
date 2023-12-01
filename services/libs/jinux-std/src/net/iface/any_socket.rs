@@ -1,6 +1,6 @@
 use super::Iface;
 use super::IpEndpoint;
-use crate::events::IoEvents;
+use crate::events::{IoEvents, Observer};
 use crate::prelude::*;
 use crate::process::signal::{Pollee, Poller};
 use smoltcp::socket::tcp::State;
@@ -84,6 +84,19 @@ impl AnyUnboundSocket {
 
     pub fn poll(&self, mask: IoEvents, poller: Option<&Poller>) -> IoEvents {
         self.pollee.poll(mask, poller)
+    }
+
+    pub fn register_observer(&self, observer: Weak<dyn Observer<IoEvents>>, mask: IoEvents) {
+        self.pollee.register_observer(observer, mask);
+    }
+
+    pub fn unregister_observer(
+        &self,
+        observer: &Weak<dyn Observer<IoEvents>>,
+    ) -> Result<Weak<dyn Observer<IoEvents>>> {
+        self.pollee
+            .unregister_observer(observer)
+            .ok_or_else(|| Error::with_message(Errno::EINVAL, "cannot unregister observer"))
     }
 
     pub(super) fn pollee(&self) -> Pollee {
@@ -189,6 +202,19 @@ impl AnyBoundSocket {
 
     pub fn poll(&self, mask: IoEvents, poller: Option<&Poller>) -> IoEvents {
         self.pollee.poll(mask, poller)
+    }
+
+    pub fn register_observer(&self, observer: Weak<dyn Observer<IoEvents>>, mask: IoEvents) {
+        self.pollee.register_observer(observer, mask);
+    }
+
+    pub fn unregister_observer(
+        &self,
+        observer: &Weak<dyn Observer<IoEvents>>,
+    ) -> Result<Weak<dyn Observer<IoEvents>>> {
+        self.pollee
+            .unregister_observer(observer)
+            .ok_or_else(|| Error::with_message(Errno::EINVAL, "cannot unregister observer"))
     }
 
     pub fn weak_ref(&self) -> Weak<Self> {

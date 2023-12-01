@@ -10,7 +10,7 @@ use trapframe::{GeneralRegs, UserContext as RawUserContext};
 #[cfg(feature = "intel_tdx")]
 use crate::arch::tdx_guest::{handle_virtual_exception, TdxTrapFrame};
 use bitvec::prelude::BitVec;
-use log::debug;
+use log::{debug, info};
 #[cfg(feature = "intel_tdx")]
 use tdx_guest::tdcall;
 use x86_64::registers::rflags::RFlags;
@@ -209,6 +209,12 @@ impl UserContextApiInternal for UserContext {
 
         crate::arch::irq::enable_local();
         if self.user_context.trap_num as u16 != SYSCALL_TRAPNUM {
+            // info!("rbx = 0x{:x}", self.user_context.general.rbx);
+            // info!("r15 = 0x{:x}", self.user_context.general.r15);
+            // info!("rip = 0x{:x}", self.user_context.general.rip);
+            // info!("rcx = 0x{:x}", self.user_context.general.rcx);
+            // info!("rdx = 0x{:x}", self.user_context.general.rdx);
+            // info!("rax = 0x{:x}", self.user_context.general.rax);
             self.cpu_exception_info = CpuExceptionInfo {
                 page_fault_addr: unsafe { x86::controlregs::cr2() },
                 id: self.user_context.trap_num,

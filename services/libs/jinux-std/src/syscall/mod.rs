@@ -90,6 +90,7 @@ use self::pread64::sys_pread64;
 use self::pwrite64::sys_pwrite64;
 use self::recvfrom::sys_recvfrom;
 use self::rt_sigsuspend::sys_rt_sigsuspend;
+use self::sendfile::sys_sendfile;
 use self::sendto::sys_sendto;
 use self::setfsgid::sys_setfsgid;
 use self::setfsuid::sys_setfsuid;
@@ -177,6 +178,7 @@ mod rt_sigreturn;
 mod rt_sigsuspend;
 mod sched_yield;
 mod select;
+mod sendfile;
 mod sendto;
 mod set_robust_list;
 mod set_tid_address;
@@ -269,6 +271,7 @@ define_syscall_nums!(
     SYS_DUP2 = 33,
     SYS_PAUSE = 34,
     SYS_GETPID = 39,
+    SYS_SENDFILE = 40,
     SYS_SOCKET = 41,
     SYS_CONNECT = 42,
     SYS_ACCEPT = 43,
@@ -448,6 +451,7 @@ pub fn syscall_dispatch(
         SYS_DUP2 => syscall_handler!(2, sys_dup2, args),
         SYS_PAUSE => syscall_handler!(0, sys_pause),
         SYS_GETPID => syscall_handler!(0, sys_getpid),
+        SYS_SENDFILE => syscall_handler!(4, sys_sendfile, args),
         SYS_SOCKET => syscall_handler!(3, sys_socket, args),
         SYS_CONNECT => syscall_handler!(3, sys_connect, args),
         SYS_ACCEPT => syscall_handler!(3, sys_accept, args),

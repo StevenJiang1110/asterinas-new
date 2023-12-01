@@ -7,11 +7,13 @@ HOST_NGINX_DIR := /usr/local/nginx
 .PHONY: all
 
 all:
-	@mkdir -p ${NGINX_DIR}/sbin ${NGINX_DIR}/conf ${NGINX_DIR}/logs
+	@mkdir -p ${NGINX_DIR}/sbin ${NGINX_DIR}/conf ${NGINX_DIR}/logs ${NGINX_DIR}/html
 	@# Copy nginx binary and config file
 	@cp -a ${HOST_NGINX_DIR}/sbin/nginx ${NGINX_DIR}/sbin
 	@cp -a ${HOST_NGINX_DIR}/conf/nginx.conf ${NGINX_DIR}/conf
 	@cp -a ${HOST_NGINX_DIR}/conf/mime.types ${NGINX_DIR}/conf
+	@cp -a ${HOST_NGINX_DIR}/html/index.html ${NGINX_DIR}/html
+	@cp -a ${HOST_NGINX_DIR}/html/50x.html ${NGINX_DIR}/html
 	# @cp -a ${HOST_NGINX_DIR}/conf/fastcgi.conf ${NGINX_DIR}/conf
 	# @cp -a ${HOST_NGINX_DIR}/conf/fastcgi_params ${NGINX_DIR}/conf
 	# @cp -a ${HOST_NGINX_DIR}/conf/koi-utf ${NGINX_DIR}/conf

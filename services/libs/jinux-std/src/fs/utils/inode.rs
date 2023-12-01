@@ -222,6 +222,25 @@ impl Metadata {
             rdev: 0,
         }
     }
+
+    pub fn new_socket_tmp() -> Metadata {
+        Self {
+            dev: 0,
+            ino: 500,
+            size: 0,
+            blk_size: 4096,
+            blocks: 0,
+            atime: Default::default(),
+            mtime: Default::default(),
+            ctime: Default::default(),
+            type_: InodeType::Socket,
+            mode: InodeMode::all(),
+            nlinks: 1,
+            uid: 0,
+            gid: 0,
+            rdev: 0,
+        }
+    }
 }
 
 pub trait Inode: Any + Sync + Send {

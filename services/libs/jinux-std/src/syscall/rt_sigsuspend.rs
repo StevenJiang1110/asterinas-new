@@ -24,9 +24,17 @@ pub fn sys_rt_sigsuspend(sigmask_addr: Vaddr, sigmask_size: usize) -> Result<Sys
     *poxis_thread.sig_mask().lock() = sigmask;
 
     let pauser = Pauser::new();
-    pauser.pause_until(|| None::<()>)?;
+    let res = pauser.pause_until(|| None::<()>);
+
+    match res {
+        Err(e) => {
+            debug!("sigsupend was interrupted");
+            return Err(e);
+        }
+        Ok(()) => unreachable!(),
+    }
 
     // rt_sigreturn should always return `Err(EINTR)`. This path should never be reached.
-    debug_assert!(false);
-    Ok(SyscallReturn::Return(0))
+    // debug_assert!(false);
+    // Ok(SyscallReturn::Return(0))
 }

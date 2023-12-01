@@ -60,11 +60,25 @@ pub fn sys_fstatat(
         let fs_path = FsPath::new(dirfd, filename.as_ref())?;
         let fs = current.fs().read();
         if flags.contains(StatFlags::AT_SYMLINK_NOFOLLOW) {
-            fs.lookup_no_follow(&fs_path)?
+            fs.lookup_no_follow(&fs_path)
         } else {
-            fs.lookup(&fs_path)?
+            fs.lookup(&fs_path)
         }
     };
+
+    let Ok(dentry) = dentry else {
+        if !filename.is_empty() {
+            return_errno_with_message!(Errno::EBADF, "file does not exist")
+        }
+
+        let file_table = current.file_table().lock();
+        file_table.get_socket(dirfd)?;
+        let metadata = Metadata::new_socket_tmp();
+        let stat = Stat::from(metadata);
+        write_val_to_user(stat_buf_ptr, &stat)?;
+        return Ok(SyscallReturn::Return(0));
+    };
+
     let stat = Stat::from(dentry.inode_metadata());
     write_val_to_user(stat_buf_ptr, &stat)?;
     Ok(SyscallReturn::Return(0))

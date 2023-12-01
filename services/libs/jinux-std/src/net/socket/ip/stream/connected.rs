@@ -5,7 +5,7 @@ use smoltcp::socket::tcp::RecvError;
 use super::util::{
     close_and_submit_linger_workitem, close_local_and_poll, is_local_closed, is_peer_closed,
 };
-use crate::events::IoEvents;
+use crate::events::{IoEvents, Observer};
 use crate::net::iface::{AnyBoundSocket, IpEndpoint, RawTcpSocket};
 use crate::net::poll_ifaces;
 use crate::net::socket::ip::stream::util::close_local;
@@ -159,6 +159,17 @@ impl ConnectedStream {
 
     pub fn poll(&self, mask: IoEvents, poller: Option<&Poller>) -> IoEvents {
         self.bound_socket.poll(mask, poller)
+    }
+
+    pub fn register_observer(&self, observer: Weak<dyn Observer<IoEvents>>, mask: IoEvents) {
+        self.bound_socket.register_observer(observer, mask);
+    }
+
+    pub fn unregister_observer(
+        &self,
+        observer: &Weak<dyn Observer<IoEvents>>,
+    ) -> Result<Weak<dyn Observer<IoEvents>>> {
+        self.bound_socket.unregister_observer(observer)
     }
 
     pub fn is_nonblocking(&self) -> bool {

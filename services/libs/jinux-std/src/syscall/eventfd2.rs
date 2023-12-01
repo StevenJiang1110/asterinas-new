@@ -8,10 +8,10 @@ use crate::process::signal::{Pauser, Pollee, Poller};
 
 pub fn sys_eventfd2(init_val: u64, flags: u32) -> Result<SyscallReturn> {
     log_syscall_entry!(SYS_EVENTFD2);
-    println!("flags = {}", flags);
+    trace!("raw flags = {}", flags);
     let flags = Flags::from_bits(flags)
         .ok_or_else(|| Error::with_message(Errno::EINVAL, "unknown flags"))?;
-    println!("flags = {:?}", flags);
+    debug!("init_val = 0x{:x}, flags = {:?}", init_val, flags);
 
     let event_file = EventFile::new(init_val, flags);
     let fd = {

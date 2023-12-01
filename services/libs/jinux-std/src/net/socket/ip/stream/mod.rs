@@ -1,7 +1,7 @@
 use jinux_rights::Rights;
 use smoltcp::wire::IpEndpoint;
 
-use crate::events::IoEvents;
+use crate::events::{IoEvents, Observer};
 use crate::fs::file_handle::FileLike;
 use crate::fs::utils::{IoctlCmd, StatusFlags};
 use crate::net::iface::RawTcpSocket;
@@ -184,6 +184,33 @@ impl FileLike for StreamSocket {
 
     fn clean_for_close(&self) -> Result<()> {
         Ok(())
+    }
+
+    fn register_observer(
+        &self,
+        observer: Weak<dyn Observer<IoEvents>>,
+        mask: IoEvents,
+    ) -> Result<()> {
+        match &*self.state.read() {
+            State::Init(init_stream) => init_stream.register_observer(observer, mask),
+            State::Listen(listen_stream) => listen_stream.register_observer(observer, mask),
+            State::Connected(connected_stream) => {
+                connected_stream.register_observer(observer, mask)
+            }
+        }
+
+        Ok(())
+    }
+
+    fn unregister_observer(
+        &self,
+        observer: &Weak<dyn Observer<IoEvents>>,
+    ) -> Result<Weak<dyn Observer<IoEvents>>> {
+        match &*self.state.read() {
+            State::Init(init_stream) => init_stream.unregister_observer(observer),
+            State::Connected(connected_stream) => connected_stream.unregister_observer(observer),
+            State::Listen(listen_stream) => listen_stream.unregister_observer(observer),
+        }
     }
 }
 
@@ -487,7 +514,7 @@ impl Socket for StreamSocket {
 
 impl Drop for StreamSocket {
     fn drop(&mut self) {
-        println!("drop socket");
+        // println!("drop socket");
         match &*self.state.read() {
             State::Init(init_stream) => init_stream.clean_for_close(),
             State::Connected(connected_stream) => connected_stream.clean_for_close(),

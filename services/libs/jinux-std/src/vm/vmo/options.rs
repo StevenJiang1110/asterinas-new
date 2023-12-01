@@ -608,4 +608,44 @@ mod test {
         vmo.resize(PAGE_SIZE).unwrap();
         assert!(vmo.read_val::<u8>(10).unwrap() == 42);
     }
+
+    #[ktest]
+    fn resize_cow() {
+        let bytes = &[10u8, 15, 20, 25, 30] as &[u8];
+
+        let vmo = VmoOptions::<Full>::new(2 * PAGE_SIZE)
+            .flags(VmoFlags::RESIZABLE)
+            .alloc()
+            .unwrap();
+        vmo.write_bytes(0, &bytes).unwrap();
+        vmo.write_bytes(PAGE_SIZE, &bytes).unwrap();
+
+        let cow_child = vmo.new_cow_child(0..PAGE_SIZE).unwrap().alloc().unwrap();
+        let read_bytes = &mut [0u8, 0, 0, 0, 0] as &mut [u8];
+        cow_child.read_bytes(0, read_bytes).unwrap();
+
+        assert_eq!(bytes, read_bytes);
+
+        cow_child.resize(2 * PAGE_SIZE).unwrap();
+
+        let zero_page = &[0u8; PAGE_SIZE] as &[u8];
+        let read_page = &mut [99u8; PAGE_SIZE] as &mut [u8];
+        assert_ne!(zero_page, read_page);
+        cow_child.read_bytes(PAGE_SIZE, read_page).unwrap();
+        assert_eq!(zero_page, read_page);
+
+        cow_child.resize(PAGE_SIZE).unwrap();
+        cow_child.resize(2 * PAGE_SIZE).unwrap();
+        let read_page = &mut [99u8; PAGE_SIZE] as &mut [u8];
+        assert_ne!(zero_page, read_page);
+        cow_child.read_bytes(PAGE_SIZE, read_page).unwrap();
+        assert_eq!(zero_page, read_page);
+
+        cow_child.resize(0).unwrap();
+        cow_child.resize(PAGE_SIZE).unwrap();
+        let read_page = &mut [99u8; PAGE_SIZE] as &mut [u8];
+        assert_ne!(zero_page, read_page);
+        cow_child.read_bytes(0, read_page).unwrap();
+        assert_eq!(zero_page, read_page);
+    }
 }

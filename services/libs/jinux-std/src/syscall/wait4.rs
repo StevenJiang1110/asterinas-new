@@ -14,7 +14,7 @@ pub fn sys_wait4(wait_pid: u64, exit_status_ptr: u64, wait_options: u32) -> Resu
     log_syscall_entry!(SYS_WAIT4);
     let wait_options = WaitOptions::from_bits(wait_options).expect("Unknown wait options");
     debug!(
-        "pid = {}, exit_status_ptr = {}, wait_options: {:?}",
+        "pid = {}, exit_status_ptr = 0x{:x}, wait_options: {:?}",
         wait_pid as i32, exit_status_ptr, wait_options
     );
     debug!("wait4 current pid = {}", current!().pid());

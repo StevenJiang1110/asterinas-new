@@ -42,6 +42,13 @@ fn handle_page_fault(trap_info: &CpuExceptionInfo) {
                 page_fault_addr, e
             );
             generate_fault_signal(trap_info);
+            if page_fault_addr == 0x10118 {
+                let rcx_plus_four = 0x10009f70usize + 4;
+                let value: u64 = root_vmar.read_val(rcx_plus_four).unwrap();
+                println!("4(%rcx), value = 0x{:x}", value);
+            }
+
+            panic!("unrecoverable page fault");
         } else {
             // ensure page fault is successfully handled
             // FIXME: this check can be removed

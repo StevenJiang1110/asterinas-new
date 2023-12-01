@@ -39,5 +39,8 @@ pub fn sys_socket(domain: i32, type_: i32, protocol: i32) -> Result<SyscallRetur
         let mut file_table = current.file_table().lock();
         file_table.insert(file_like)
     };
+
+    debug!("fd = {}", fd);
+
     Ok(SyscallReturn::Return(fd as _))
 }

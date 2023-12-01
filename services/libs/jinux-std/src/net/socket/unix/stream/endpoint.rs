@@ -1,4 +1,4 @@
-use crate::events::IoEvents;
+use crate::events::{IoEvents, Observer};
 use crate::process::signal::Poller;
 use crate::{
     fs::utils::{Channel, Consumer, Producer, StatusFlags},
@@ -110,15 +110,32 @@ impl Endpoint {
         let reader_events = self.0.reader.poll(mask, poller);
         let writer_events = self.0.writer.poll(mask, poller);
 
-        if reader_events.contains(IoEvents::HUP) || self.0.reader.is_shutdown() {
-            events |= IoEvents::RDHUP | IoEvents::IN;
-            if writer_events.contains(IoEvents::ERR) || self.0.writer.is_shutdown() {
-                events |= IoEvents::HUP | IoEvents::OUT;
-            }
-        }
+        // if reader_events.contains(IoEvents::HUP) || self.0.reader.is_shutdown() {
+        //     events |= IoEvents::RDHUP | IoEvents::IN;
+        //     if writer_events.contains(IoEvents::ERR) || self.0.writer.is_shutdown() {
+        //         events |= IoEvents::HUP | IoEvents::OUT;
+        //     }
+        // }
 
         events |= (reader_events & IoEvents::IN) | (writer_events & IoEvents::OUT);
         events
+    }
+
+    pub(super) fn register_observer(&self, observer: Weak<dyn Observer<IoEvents>>, mask: IoEvents) {
+        self.0
+            .reader
+            .register_observer(observer.clone(), mask)
+            .unwrap();
+        self.0.writer.register_observer(observer, mask).unwrap();
+    }
+
+    pub(super) fn unregister_observer(
+        &self,
+        observer: &Weak<dyn Observer<IoEvents>>,
+    ) -> Result<Weak<dyn Observer<IoEvents>>> {
+        let reader_observer = self.0.reader.unregister_observer(observer);
+        self.0.writer.unregister_observer(observer)?;
+        reader_observer
     }
 }
 

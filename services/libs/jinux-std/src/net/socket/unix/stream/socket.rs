@@ -1,4 +1,4 @@
-use crate::events::IoEvents;
+use crate::events::{IoEvents, Observer};
 use crate::fs::file_handle::FileLike;
 use crate::fs::fs_resolver::FsPath;
 use crate::fs::utils::{Dentry, InodeType, IoctlCmd, StatusFlags};
@@ -145,6 +145,31 @@ impl FileLike for UnixStreamSocket {
         }
 
         Ok(0)
+    }
+
+    fn register_observer(
+        &self,
+        observer: Weak<dyn Observer<IoEvents>>,
+        mask: IoEvents,
+    ) -> Result<()> {
+        match &*self.0.read() {
+            State::Init(init) => init.register_observer(observer, mask),
+            State::Listen(listener) => listener.register_observer(observer, mask),
+            State::Connected(connected) => connected.register_observer(observer, mask),
+        }
+
+        Ok(())
+    }
+
+    fn unregister_observer(
+        &self,
+        observer: &Weak<dyn Observer<IoEvents>>,
+    ) -> Result<Weak<dyn Observer<IoEvents>>> {
+        match &*self.0.read() {
+            State::Init(init) => init.unregister_observer(observer),
+            State::Listen(listener) => listener.unregister_observer(observer),
+            State::Connected(connected) => connected.unregister_observer(observer),
+        }
     }
 }
 

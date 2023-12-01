@@ -121,11 +121,17 @@ pub fn sys_epoll_wait(
         .downcast_ref::<EpollFile>()
         .ok_or(Error::with_message(Errno::EINVAL, "not epoll file"))?;
     let epoll_events = epoll_file.wait(max_events, timeout.as_ref())?;
+    // println!("epoll events = {:?}", epoll_events);
+    // for event in epoll_events.iter() {
+    //     println!("data = 0x{:x}", event.user_data);
+    // }
 
     // Write back
     let mut write_addr = events_addr;
     for epoll_event in epoll_events.iter() {
         let c_epoll_event = c_epoll_event::from(epoll_event);
+        // println!("write_addr = 0x{:x}", write_addr);
+        // println!("c_epoll_event = {:?}", c_epoll_event);
         write_val_to_user(write_addr, &c_epoll_event)?;
         write_addr += core::mem::size_of::<c_epoll_event>();
     }
@@ -134,7 +140,7 @@ pub fn sys_epoll_wait(
 }
 
 #[derive(Debug, Clone, Copy, Pod)]
-#[repr(C)]
+#[repr(C, packed)]
 struct c_epoll_event {
     events: u32,
     data: u64,

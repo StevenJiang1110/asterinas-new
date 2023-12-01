@@ -37,7 +37,7 @@ pub fn sys_prctl(option: i32, arg2: u64, arg3: u64, arg4: u64, arg5: u64) -> Res
     Ok(SyscallReturn::Return(0))
 }
 
-const PR_SET_DUMPABLE: i32 = 3;
+const PR_SET_DUMPABLE: i32 = 4;
 const PR_SET_NAME: i32 = 15;
 const PR_GET_NAME: i32 = 16;
 const PR_SET_TIMERSLACK: i32 = 29;

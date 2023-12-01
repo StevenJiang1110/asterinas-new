@@ -7,6 +7,7 @@ use crate::{
     vm::vmo::{VmoFlags, VmoOptions},
 };
 use align_ext::AlignExt;
+use jinux_frame::vm::VmIo;
 use jinux_rights::{Full, Rights};
 
 pub const USER_HEAP_BASE: Vaddr = 0x0000_0000_1000_0000;
@@ -53,14 +54,29 @@ impl UserHeap {
                     return_errno_with_message!(Errno::ENOMEM, "heap size limit was met.");
                 }
                 let current_heap_end = self.current_heap_end.load(Ordering::Acquire);
-                if new_heap_end < current_heap_end {
-                    // FIXME: should we allow shrink current user heap?
-                    return Ok(current_heap_end);
-                }
-                let new_size = (new_heap_end - self.heap_base).align_up(PAGE_SIZE);
+                // println!("new heap end = 0x{:x}, current_heap_end = 0x{:x}", new_heap_end, current_heap_end);
                 let heap_mapping = root_vmar.get_vm_mapping(USER_HEAP_BASE)?;
                 let heap_vmo = heap_mapping.vmo();
-                heap_vmo.resize(new_size)?;
+                if new_heap_end < current_heap_end {
+                    // FIXME: should we allow shrink current user heap?
+                    // println!("shrink user heap, new heap end = 0x{:x}, current_heap_end = 0x{:x}", new_heap_end, current_heap_end);
+                    let offset = new_heap_end - self.heap_base;
+                    let size = heap_vmo.size() - offset;
+                    let zeros = vec![0u8; size];
+                    heap_vmo.write_slice(offset, &zeros).unwrap();
+                    self.current_heap_end.store(new_heap_end, Ordering::Release);
+                    return Ok(new_heap_end);
+                }
+                let new_size = (new_heap_end - self.heap_base).align_up(PAGE_SIZE);
+                if new_size > heap_vmo.size() {
+                    heap_vmo.resize(new_size)?;
+                }
+
+                let offset = current_heap_end - self.heap_base;
+                let size = heap_vmo.size() - offset;
+                let zeros = vec![0u8; size];
+                heap_vmo.write_slice(offset, &zeros).unwrap();
+
                 self.current_heap_end.store(new_heap_end, Ordering::Release);
                 Ok(new_heap_end)
             }
