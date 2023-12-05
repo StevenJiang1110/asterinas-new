@@ -818,6 +818,7 @@ version = "0.1.0"
 dependencies = [
  "component",
  "jinux-frame",
+ "jinux-util",
  "log",
  "spin 0.9.8",
 ]
@@ -830,6 +831,7 @@ dependencies = [
  "jinux-frame",
  "jinux-rights",
  "jinux-rights-proc",
+ "ktest",
  "pod",
  "typeflags-util",
 ]
