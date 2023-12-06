@@ -10,7 +10,7 @@ use trapframe::{GeneralRegs, UserContext as RawUserContext};
 #[cfg(feature = "intel_tdx")]
 use crate::arch::tdx_guest::{handle_virtual_exception, TdxTrapFrame};
 use bitvec::prelude::BitVec;
-use log::{debug, info};
+use log::debug;
 #[cfg(feature = "intel_tdx")]
 use tdx_guest::tdcall;
 use x86_64::registers::rflags::RFlags;

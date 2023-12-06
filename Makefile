@@ -15,7 +15,7 @@ SKIP_GRUB_MENU ?= 1
 RELEASE_MODE ?= 0
 # End of setting up Make varaiables
 
-KERNEL_CMDLINE := SHELL="/bin/sh" LOGNAME="root" HOME="/" USER="root" PATH="/bin:/usr/local/nginx/sbin" init=/usr/bin/busybox
+KERNEL_CMDLINE := SHELL="/bin/sh" LOGNAME="root" HOME="/" USER="root" PATH="/bin:/usr/local/nginx/sbin:/usr/local/wrk" init=/usr/bin/busybox
 KERNEL_CMDLINE += ktest.whitelist="$(KTEST_WHITELIST)"
 INIT_CMDLINE := sh -l
 ifeq ($(AUTO_TEST), syscall)

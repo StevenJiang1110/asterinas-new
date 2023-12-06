@@ -21,7 +21,7 @@ pub fn sys_sendfile(
         Some(read_val_from_user::<isize>(offset_ptr)?)
     };
 
-    if in_fd == 0 || out_fd == 0 || in_fd == 1 || out_fd == 1 || in_fd == 2 || out_fd == 2{
+    if in_fd == 0 || out_fd == 0 || in_fd == 1 || out_fd == 1 || in_fd == 2 || out_fd == 2 {
         return_errno!(Errno::ENOSYS);
     }
 
