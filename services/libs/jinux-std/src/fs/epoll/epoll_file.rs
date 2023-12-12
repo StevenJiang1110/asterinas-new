@@ -1,3 +1,5 @@
+use alloc::format;
+
 use crate::events::{IoEvents, Observer};
 use crate::fs::file_handle::FileLike;
 use crate::fs::file_table::{FdEvents, FileDescripter};
@@ -62,6 +64,9 @@ impl EpollFile {
         ep_event: EpollEvent,
         ep_flags: EpollFlags,
     ) -> Result<()> {
+        // println!("add interest, ep flags = {:?}, fd = {}", ep_flags, fd);
+        // panic!();
+
         self.warn_unsupported_flags(&ep_flags);
 
         let current = current!();
@@ -178,6 +183,8 @@ impl EpollFile {
                 return Ok(ep_events);
             }
 
+            // println!("pop ready is 0");
+
             // Return immediately if specifying a timeout of zero
             if timeout.is_some() && timeout.as_ref().unwrap().is_zero() {
                 return Ok(ep_events);
@@ -185,18 +192,31 @@ impl EpollFile {
 
             // If no ready entries for now, wait for them
             if poller.is_none() {
+                // println!("poller is none");
                 poller = Some(Poller::new());
                 let events = self.pollee.poll(IoEvents::IN, poller.as_ref());
+                // println!("poll events = {:?}", events);
                 if !events.is_empty() {
                     continue;
                 }
             }
 
             if let Some(timeout) = timeout {
+                let timeout_str = format!("{:?}", timeout);
+                // println!("epoll wait, timeout length = {}", timeout_str);
                 poller.as_ref().unwrap().wait_timeout(timeout)?;
             } else {
+                // println!(
+                //     "epoll wait, timeout is None, wait poller = 0x{:x}, observer = 0x{:x}, wait pollee = 0x{:x}",
+                //     poller.as_ref().unwrap().ptr(),
+                //     Weak::as_ptr(&poller.as_ref().unwrap().observer()).addr(),
+                //     self.pollee.ptr(),
+                // );
+                // self.pollee.print_observers();
+
                 poller.as_ref().unwrap().wait()?;
             }
+            // println!("epoll wait returns");
         }
     }
 
@@ -210,6 +230,8 @@ impl EpollFile {
             entry.set_ready();
             ready.push_back(entry);
         }
+
+        // println!("wake up pollee, addr = 0x{:x}", self.pollee.ptr());
 
         // Even if the entry is already set to ready, there might be new events that we are interested in.
         // Wake the poller anyway.
@@ -240,13 +262,22 @@ impl EpollFile {
             // to be returned.
             for entry in ready_entries {
                 let (ep_event, ep_flags) = entry.event_and_flags();
-                // If this entry's file is ready, save it in the output array.
                 // EPOLLHUP and EPOLLERR should always be reported.
                 let ready_events = entry.poll() & (ep_event.events | IoEvents::HUP | IoEvents::ERR);
-                if !ready_events.is_empty() {
-                    ep_events.push(EpollEvent::new(ready_events, ep_event.user_data));
-                    count_events += 1;
+                // If there are no events, the entry should be removed from the ready list.
+                if ready_events.is_empty() {
+                    entry.reset_ready();
+                    // For EPOLLONESHOT flag, this entry should also be removed from the interest list
+                    if ep_flags.intersects(EpollFlags::ONE_SHOT) {
+                        self.del_interest(entry.fd())
+                            .expect("this entry should be in the interest list");
+                    }
+                    continue;
                 }
+
+                // Records the events from the ready list
+                ep_events.push(EpollEvent::new(ready_events, ep_event.user_data));
+                count_events += 1;
 
                 // If the epoll entry is neither edge-triggered or one-shot, then we should
                 // keep the entry in the ready list.
@@ -266,6 +297,7 @@ impl EpollFile {
             }
         }
 
+        // println!("ready len = {}", ready.len());
         // Clear the epoll file's events if no ready entries
         if ready.len() == 0 {
             self.pollee.del_events(IoEvents::IN);
@@ -291,8 +323,9 @@ impl Observer<FdEvents> for EpollFile {
 
 impl Drop for EpollFile {
     fn drop(&mut self) {
-        trace!("EpollFile Drop");
+        // println!("EpollFile Drop");
         let mut interest = self.interest.lock();
+        // print!("lock interest succeeds");
         let fds: Vec<_> = interest
             .extract_if(|_, _| true)
             .map(|(fd, entry)| {
@@ -478,13 +511,17 @@ impl EpollEntry {
 
 impl Observer<IoEvents> for EpollEntry {
     fn on_events(&self, _events: &IoEvents) {
+        // println!("epoll entry on_events, fd = {}", self.fd);
         // Fast path
         if self.is_deleted() {
             return;
         }
 
         if let Some(epoll_file) = self.epoll_file() {
+            // println!("epoll entry on_events: push ready, fd = {}", self.fd);
             epoll_file.push_ready(self.self_arc());
         }
+
+        // println!("epoll file on events returns, fd ={}", self.fd);
     }
 }

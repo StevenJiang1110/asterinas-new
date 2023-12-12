@@ -191,6 +191,7 @@ impl FileLike for EventFile {
         observer: Weak<dyn crate::events::Observer<IoEvents>>,
         mask: IoEvents,
     ) -> Result<()> {
+        // println!("register observer for eventfd");
         self.pollee.register_observer(observer, mask);
         Ok(())
     }

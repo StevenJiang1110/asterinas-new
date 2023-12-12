@@ -57,6 +57,10 @@ impl Pollee {
         self.events() & mask
     }
 
+    pub fn print_observers(&self) {
+        self.inner.subject.println_observers();
+    }
+
     fn register_poller(&self, poller: &Poller, mask: IoEvents) {
         self.inner
             .subject
@@ -125,6 +129,10 @@ impl Pollee {
         let event_bits = self.inner.events.load(Ordering::Acquire);
         IoEvents::from_bits(event_bits).unwrap()
     }
+
+    pub fn ptr(&self) -> Vaddr {
+        Arc::as_ptr(&self.inner) as _
+    }
 }
 
 /// A poller gets notified when its associated pollees have interesting events.
@@ -171,8 +179,12 @@ impl Poller {
         Ok(())
     }
 
-    fn observer(&self) -> Weak<dyn Observer<IoEvents>> {
+    pub fn observer(&self) -> Weak<dyn Observer<IoEvents>> {
         Arc::downgrade(&self.inner) as _
+    }
+
+    pub fn ptr(&self) -> Vaddr {
+        Arc::as_ptr(&self.inner) as Vaddr
     }
 }
 

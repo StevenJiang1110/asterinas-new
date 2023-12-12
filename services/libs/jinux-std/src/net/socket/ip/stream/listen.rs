@@ -28,8 +28,13 @@ impl ListenStream {
     pub fn new(
         nonblocking: bool,
         bound_socket: Arc<AnyBoundSocket>,
-        backlog: usize,
+        mut backlog: usize,
     ) -> Result<Self> {
+        // println!("listen, backlog = {}", backlog);
+        // if backlog > 3 {
+        //     backlog = 3;
+        // }
+
         let listen_stream = Self {
             is_nonblocking: AtomicBool::new(nonblocking),
             backlog: AtomicUsize::new(backlog),
@@ -41,8 +46,12 @@ impl ListenStream {
         Ok(listen_stream)
     }
 
-    pub fn listen(&self, backlog: usize) -> Result<()> {
+    pub fn listen(&self, mut backlog: usize) -> Result<()> {
         debug_assert!(backlog >= self.backlog());
+        // println!("listen again, backlog = {}", backlog);
+        // if backlog >= 3 {
+        //     backlog = 3;
+        // }
         self.backlog.store(backlog, Ordering::Release);
         self.fill_backlog_sockets()
     }
@@ -145,8 +154,12 @@ impl ListenStream {
     }
 
     pub fn poll(&self, mask: IoEvents, poller: Option<&Poller>) -> IoEvents {
+        // println!("poll listening stream");
         let backlog_sockets = self.backlog_sockets.read();
         for backlog_socket in backlog_sockets.iter() {
+            // let state = backlog_socket.bound_socket.raw_with(|tcp_socket: &mut RawTcpSocket| tcp_socket.state());
+            // println!("state = {:?}", state);
+
             if backlog_socket.is_active() {
                 return IoEvents::IN;
             } else {
@@ -158,6 +171,8 @@ impl ListenStream {
     }
 
     pub(super) fn register_observer(&self, observer: Weak<dyn Observer<IoEvents>>, mask: IoEvents) {
+        // println!("register observer for listening socket");
+
         let backlog_sockets = self.backlog_sockets.read();
         for backlog_socket in backlog_sockets.iter() {
             backlog_socket

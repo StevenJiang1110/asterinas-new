@@ -191,6 +191,7 @@ impl FileLike for StreamSocket {
         observer: Weak<dyn Observer<IoEvents>>,
         mask: IoEvents,
     ) -> Result<()> {
+        // println!("register observer for stream socket");
         match &*self.state.read() {
             State::Init(init_stream) => init_stream.register_observer(observer, mask),
             State::Listen(listen_stream) => listen_stream.register_observer(observer, mask),
@@ -515,10 +516,13 @@ impl Socket for StreamSocket {
 impl Drop for StreamSocket {
     fn drop(&mut self) {
         // println!("drop socket");
-        match &*self.state.read() {
+        let state = self.state.read();
+        // println!("lock state");
+        match &*state {
             State::Init(init_stream) => init_stream.clean_for_close(),
             State::Connected(connected_stream) => connected_stream.clean_for_close(),
             State::Listen(listen_stream) => listen_stream.clean_for_close(),
         }
+        // println!("drop returns");
     }
 }

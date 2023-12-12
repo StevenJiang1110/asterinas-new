@@ -411,6 +411,7 @@ pub fn handle_syscall(context: &mut UserContext) {
 
     match syscall_return {
         Ok(return_value) => {
+            // println!("syscall returns ok: {:?}", return_value);
             if let SyscallReturn::Return(return_value) = return_value {
                 context.set_rax(return_value as usize);
             }

@@ -20,6 +20,7 @@
 #![feature(trait_upcasting)]
 #![feature(format_args_nl)]
 #![register_tool(component_access_control)]
+#![feature(strict_provenance)]
 
 use crate::{
     prelude::*,

@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use core::sync::atomic::{AtomicUsize, Ordering};
-use keyable_arc::KeyableWeak;
+use keyable_arc::{KeyableArc, KeyableWeak};
 
 use super::{Events, EventsFilter, Observer};
 
@@ -58,6 +58,16 @@ impl<E: Events, F: EventsFilter<E>> Subject<E, F> {
         observer
     }
 
+    pub fn println_observers(&self) {
+        println!("*******all observers:**********");
+        let obervers = self.observers.lock();
+        for observer in obervers.keys() {
+            let addr = Weak::as_ptr(&observer.0).addr();
+            println!("observer addr = 0x{:x}", addr);
+        }
+        println!("********list all ***********");
+    }
+
     /// Notify events to all registered observers.
     ///
     /// It will remove the observers which have been freed.
@@ -70,10 +80,14 @@ impl<E: Events, F: EventsFilter<E>> Subject<E, F> {
         // Slow path: broadcast the new events to all observers.
         let mut observers = self.observers.lock();
         observers.retain(|observer, filter| {
+            // println!("weak observer = 0x{:x}", Weak::as_ptr(&observer.0).addr());
             if let Some(observer) = observer.upgrade() {
                 if !filter.filter(events) {
                     return true;
                 }
+                let observer_addr = Arc::as_ptr(&observer.0).addr();
+                // println!("wake up observer, 0x{:x}", observer_addr);
+
                 observer.on_events(events);
                 true
             } else {

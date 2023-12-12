@@ -11,6 +11,9 @@ pub fn sys_time(tloc: Vaddr) -> Result<SyscallReturn> {
     debug!("tloc = 0x{tloc:x}");
     let now = SystemTime::now();
     let now_as_secs = now.duration_since(&SystemTime::UNIX_EPOCH)?.as_secs();
-    write_val_to_user(tloc, &now_as_secs)?;
-    Ok(SyscallReturn::Return(0))
+    if tloc != 0 {
+        write_val_to_user(tloc, &now_as_secs)?;
+    }
+    // println!("now_as_secs = {:?}", now_as_secs);
+    Ok(SyscallReturn::Return(now_as_secs as _))
 }

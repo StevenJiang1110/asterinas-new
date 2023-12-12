@@ -230,15 +230,15 @@ impl InitStream {
 
         drop(inner);
 
-        if self.is_nonblocking() {
-            let events = self.inner.read().poll(IoEvents::OUT | IoEvents::IN, None);
-            if events.contains(IoEvents::IN) || events.contains(IoEvents::OUT) {
-                return Ok(());
-            }
-            // FIXME: this function should be done in a work item, instead of blocking current thread.
-            poll_ifaces();
-            return_errno_with_message!(Errno::EINPROGRESS, "try connect again");
-        }
+        // if self.is_nonblocking() {
+        //     let events = self.inner.read().poll(IoEvents::OUT | IoEvents::IN, None);
+        //     if events.contains(IoEvents::IN) || events.contains(IoEvents::OUT) {
+        //         return Ok(());
+        //     }
+        //     // FIXME: this function should be done in a work item, instead of blocking current thread.
+        //     poll_ifaces();
+        //     return_errno_with_message!(Errno::EINPROGRESS, "try connect again");
+        // }
 
         // Wait until building connection
         let poller = Poller::new();

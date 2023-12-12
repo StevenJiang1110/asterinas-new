@@ -117,7 +117,7 @@ use core::ops::{CoerceUnsized, Deref};
 
 /// Same as the standard `Arc`, except that it can be used as the key type of a hash table.
 #[repr(transparent)]
-pub struct KeyableArc<T: ?Sized>(Arc<T>);
+pub struct KeyableArc<T: ?Sized>(pub Arc<T>);
 
 impl<T> KeyableArc<T> {
     /// Constructs a new instance of `KeyableArc<T>`.
@@ -224,7 +224,7 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for KeyableArc<T> {
 /// `KeyableWeak<T>` is also _keyable_ for any type `T` just like
 /// `KeyableArc<T>`.
 #[repr(transparent)]
-pub struct KeyableWeak<T: ?Sized>(Weak<T>);
+pub struct KeyableWeak<T: ?Sized>(pub Weak<T>);
 
 impl<T> KeyableWeak<T> {
     /// Constructs a new `KeyableWeak<T>`, without allocating any memory.
