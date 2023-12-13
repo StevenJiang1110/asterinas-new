@@ -1,9 +1,6 @@
 use crate::net::iface::{is_tcp_closed, is_tcp_peer_closed, AnyBoundSocket, RawTcpSocket};
 use crate::prelude::*;
-use crate::thread::work_queue::work_item::WorkItem;
-use crate::thread::work_queue::{submit_work_item, WorkPriority};
 use core::time::Duration;
-use jinux_frame::sync::WaitQueue;
 
 /// Returns whether the connection is closed by peer end. Note that if local
 /// end is also closed, this method will always return false.
@@ -40,27 +37,27 @@ pub(super) fn close_local_and_poll(bound_socket: &AnyBoundSocket) {
 /// 2. The wait timeout should be controlled by the linger option.
 /// 3. Follow the default timeout as linux.
 pub(super) fn close_and_submit_linger_workitem(bound_socket: Arc<AnyBoundSocket>) {
-    bound_socket.raw_with(|socket: &mut RawTcpSocket| socket.close());
+    bound_socket.raw_with(|socket: &mut RawTcpSocket| socket.abort());
     bound_socket.iface().poll();
 
-    // Fast path.
-    if is_local_closed(&bound_socket) {
-        return;
-    }
+    // // Fast path.
+    // if is_local_closed(&bound_socket) {
+    //     return;
+    // }
 
-    // Slow path
-    let work_item = WorkItem::new(Box::new(move || {
-        WaitQueue::new().wait_until_or_timeout(|| None::<()>, &CLOSE_TIMEOUT);
+    // // Slow path
+    // let work_item = WorkItem::new(Box::new(move || {
+    //     WaitQueue::new().wait_until_or_timeout(|| None::<()>, &CLOSE_TIMEOUT);
 
-        bound_socket.iface().poll();
-        if !is_local_closed(&bound_socket) {
-            // If socket is not closed until timeout, we force to abort the connection.
-            bound_socket.raw_with(|socket: &mut RawTcpSocket| socket.abort());
-            bound_socket.iface().poll();
-        }
-    }));
+    //     bound_socket.iface().poll();
+    //     if !is_local_closed(&bound_socket) {
+    //         // If socket is not closed until timeout, we force to abort the connection.
+    //         bound_socket.raw_with(|socket: &mut RawTcpSocket| socket.abort());
+    //         bound_socket.iface().poll();
+    //     }
+    // }));
 
-    submit_work_item(Arc::new(work_item), WorkPriority::Normal);
+    // submit_work_item(Arc::new(work_item), WorkPriority::Normal);
 }
 
 const CLOSE_TIMEOUT: Duration = Duration::new(1, 0);

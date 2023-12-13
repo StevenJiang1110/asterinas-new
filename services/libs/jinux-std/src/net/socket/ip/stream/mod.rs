@@ -113,8 +113,8 @@ impl StreamSocket {
             let nonblocking = init_stream.is_nonblocking();
             let bound_socket = init_stream.bound_socket().unwrap();
 
-            let state = bound_socket.raw_with(|socket: &mut RawTcpSocket| socket.state());
-            println!("state = {:?}", state);
+            // let state = bound_socket.raw_with(|socket: &mut RawTcpSocket| socket.state());
+            // println!("state = {:?}", state);
             let remote_endpoint = init_stream.remote_endpoint()?;
             Arc::new(ConnectedStream::new(
                 nonblocking,

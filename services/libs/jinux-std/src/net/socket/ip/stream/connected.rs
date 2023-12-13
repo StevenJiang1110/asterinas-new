@@ -141,9 +141,9 @@ impl ConnectedStream {
                 let state = self
                     .bound_socket
                     .raw_with(|socket: &mut RawTcpSocket| socket.state());
-                println!("state = {:?}", state);
-                println!("e = {:?}", e);
-                todo!()
+                // println!("state = {:?}", state);
+                // println!("e = {:?}", e);
+                return_errno_with_message!(Errno::EINVAL, "invalid socket state");
             }
         };
         Ok(res.unwrap())

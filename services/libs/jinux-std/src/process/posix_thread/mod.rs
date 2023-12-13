@@ -218,9 +218,9 @@ impl PosixThread {
 
         if self.is_main_thread() || self.is_last_thread() {
             // exit current process.
-            debug!("self is main thread or last thread");
-            debug!("main thread: {}", self.is_main_thread());
-            debug!("last thread: {}", self.is_last_thread());
+            // debug!("self is main thread or last thread");
+            // debug!("main thread: {}", self.is_main_thread());
+            // debug!("last thread: {}", self.is_last_thread());
             do_exit_group(term_status);
         }
         debug!("perform futex wake");

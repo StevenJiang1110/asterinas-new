@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use core::sync::atomic::{AtomicUsize, Ordering};
-use keyable_arc::{KeyableArc, KeyableWeak};
+use keyable_arc::KeyableWeak;
 
 use super::{Events, EventsFilter, Observer};
 

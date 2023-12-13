@@ -28,7 +28,7 @@ impl ListenStream {
     pub fn new(
         nonblocking: bool,
         bound_socket: Arc<AnyBoundSocket>,
-        mut backlog: usize,
+        backlog: usize,
     ) -> Result<Self> {
         // println!("listen, backlog = {}", backlog);
         // if backlog > 3 {
@@ -46,7 +46,7 @@ impl ListenStream {
         Ok(listen_stream)
     }
 
-    pub fn listen(&self, mut backlog: usize) -> Result<()> {
+    pub fn listen(&self, backlog: usize) -> Result<()> {
         debug_assert!(backlog >= self.backlog());
         // println!("listen again, backlog = {}", backlog);
         // if backlog >= 3 {

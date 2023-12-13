@@ -251,7 +251,7 @@ impl InitStream {
                 .poll(IoEvents::OUT | IoEvents::IN, Some(&poller));
 
             if events.contains(IoEvents::IN) || events.contains(IoEvents::OUT) {
-                println!("connect succeeds.");
+                // println!("connect succeeds.");
                 return Ok(());
             } else {
                 let is_closed = {

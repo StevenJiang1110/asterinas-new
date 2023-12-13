@@ -262,6 +262,7 @@ impl EpollFile {
             // to be returned.
             for entry in ready_entries {
                 let (ep_event, ep_flags) = entry.event_and_flags();
+                // If this entry's file is ready, save it in the output array.
                 // EPOLLHUP and EPOLLERR should always be reported.
                 let ready_events = entry.poll() & (ep_event.events | IoEvents::HUP | IoEvents::ERR);
                 // If there are no events, the entry should be removed from the ready list.

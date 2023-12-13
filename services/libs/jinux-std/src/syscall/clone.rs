@@ -44,9 +44,9 @@ pub fn sys_clone3(
         debug!("args = {:x?}", args);
         CloneArgs::from(args)
     };
-    println!("clone args = {:x?}", clone_args);
+    debug!("clone args = {:x?}", clone_args);
     let child_pid = clone_child(parent_context, clone_args)?;
-    println!("child pid = {}", child_pid);
+    debug!("child pid = {}", child_pid);
     Ok(SyscallReturn::Return(child_pid as _))
 }
 
