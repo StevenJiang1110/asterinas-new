@@ -75,6 +75,7 @@ use self::accept::{sys_accept, sys_accept4};
 use self::alarm::sys_alarm;
 use self::bind::sys_bind;
 use self::chown::sys_chown;
+use self::clone::sys_clone3;
 use self::connect::sys_connect;
 use self::eventfd2::sys_eventfd2;
 use self::execve::sys_execveat;
@@ -370,7 +371,8 @@ define_syscall_nums!(
     SYS_PIPE2 = 293,
     SYS_PRLIMIT64 = 302,
     SYS_GETRANDOM = 318,
-    SYS_EXECVEAT = 322
+    SYS_EXECVEAT = 322,
+    SYS_CLONE3 = 435
 );
 
 pub struct SyscallArgument {
@@ -555,6 +557,7 @@ pub fn syscall_dispatch(
         SYS_PRLIMIT64 => syscall_handler!(4, sys_prlimit64, args),
         SYS_GETRANDOM => syscall_handler!(3, sys_getrandom, args),
         SYS_EXECVEAT => syscall_handler!(5, sys_execveat, args, context),
+        SYS_CLONE3 => syscall_handler!(2, sys_clone3, args, *context),
         _ => {
             warn!("Unimplemented syscall number: {}", syscall_number);
             return_errno_with_message!(Errno::ENOSYS, "Syscall was unimplemented");
