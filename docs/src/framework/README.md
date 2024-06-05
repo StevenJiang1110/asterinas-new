@@ -38,6 +38,9 @@ Most of these APIs fall into the following categories:
 To explore how these APIs come into play,
 see [the example of a 100-line kernel in safe Rust](a-100-line-kernel.md).
 
+The framework APIs have been extensively documented.
+You can view the complete API documentation at the [online documentation](https://asterinas.github.io/api-docs/aster_frame).
+
 ## Four Requirements Satisfied
 
 In designing and implementing Asterinas Framework,
