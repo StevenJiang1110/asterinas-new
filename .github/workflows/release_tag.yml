@@ -1,0 +1,19 @@
+name: Release Tag
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
+      - .github/workflows/release_tag.yml
+
+jobs:
+  tag_main_branch:
+    runs-on: ubuntu-latest
+    steps: 
+      - name: Add tag
+        uses: pxpm/github-tag-action@1.0.1
+        env:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          tag: v0.4.2
