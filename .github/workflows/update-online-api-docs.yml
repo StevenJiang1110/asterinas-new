@@ -1,0 +1,52 @@
+name: Update Online API Docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      # If there are updates on aster-frame or any of its dependent crates,
+      # the API documentation should be updated.
+      - 'framework/**'
+      - '.github/workflows/update-online-api-docs.yml'
+
+jobs:
+  build_and_upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: asterinas/asterinas:0.4.2
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: 'asterinas/asterinas'
+          path: 'asterinas'
+      
+      - name: Build the API docs
+        run: |
+          cd asterinas
+          make install_osdk
+          cd framework/aster-frame
+          cargo osdk doc
+
+      - name: Upload API docs
+        env:
+          API_DOCS_PUBLISH_KEY: ${{ secrets.API_DOCS_PUBLISH_KEY }}
+        # The same process as update-website workflow
+        run: |
+          echo "$API_DOCS_PUBLISH_KEY\n" > ./api_docs_publish_key
+          chmod 600 ./api_docs_publish_key
+          ssh-keygen -y -f ./api_docs_publish_key > /dev/null
+          ssh-keyscan -t rsa github.com >> ./known_hosts
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          GIT_SSH_COMMAND="ssh -i ./api_docs_publish_key -o UserKnownHostsFile=./known_hosts" git clone git@github.com:asterinas/api-docs.git temp_api_docs
+          cd temp_api_docs
+          git checkout --orphan new_branch
+          git rm -rf *
+          cp -r ../asterinas/target/x86_64-unknown-none/doc/* ./
+          git add .
+          git commit -am "Update api docs"
+          git branch -D main
+          git branch -m main
+          GIT_SSH_COMMAND="ssh -i ../api_docs_publish_key -o UserKnownHostsFile=../known_hosts" git push -f origin main
