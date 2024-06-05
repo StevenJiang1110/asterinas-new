@@ -1,0 +1,17 @@
+name: Release Tag
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
+      - .github/workflows/release_tag.yml
+
+jobs:
+  tag_main_branch:
+    runs-on: ubuntu-latest
+    uses: ChloePlanet/github-tag-action@master
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      custom_tag: v0.4.2
