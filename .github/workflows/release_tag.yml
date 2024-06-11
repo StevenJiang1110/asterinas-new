@@ -1,3 +1,5 @@
+# This CI add git tag to the main branch when version changes.
+
 name: Release Tag
 
 on:
