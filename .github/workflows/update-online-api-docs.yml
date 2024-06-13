@@ -1,16 +1,22 @@
 name: Update Online API Docs
 
 on:
-  # The scheduled job for nightly API docs
-  schedule:
-    # UTC 00:00 everyday
-    - cron: "0 0 * * *"
-  # The job for API docs of new version
   push:
     branches:
       - main
+      - update-api-doc
     paths:
-      - VERSION
+      - .github/workflows/**
+  # # The event for nightly API docs
+  # schedule:
+  #   # UTC 00:00 everyday
+  #   - cron: "0 0 * * *"
+  # # The job for API docs of new version
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - VERSION
 
 jobs:
   build_and_upload:
