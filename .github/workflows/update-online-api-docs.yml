@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - main
+      - update-api-doc
     paths:
       - VERSION
 
@@ -21,11 +22,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: 'asterinas/asterinas'
+          repository: 'StevenJiang1110/asterinas'
           path: 'asterinas'
+          ref: 'update-api-doc'
+
 
       - name: Build & Upload Nightly API Docs
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'push'
         env:
           API_DOCS_NIGHTLY_PUBLISH_KEY: ${{ secrets.API_DOCS_NIGHTLY_PUBLISH_KEY }}
         run: |
