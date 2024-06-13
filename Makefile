@@ -116,7 +116,7 @@ all: build
 # To uninstall, do `cargo uninstall cargo-osdk`
 .PHONY: install_osdk
 install_osdk:
-	@cargo install cargo-osdk --path osdk
+	@cargo install --force cargo-osdk --path osdk
 
 # This will install OSDK if it is not already installed
 # To update OSDK, we need to run `install_osdk` manually

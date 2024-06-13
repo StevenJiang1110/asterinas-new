@@ -15,10 +15,24 @@ jobs:
       - run: echo "Running in asterinas/asterinas:0.4.2"
 
       - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          # This paths are from https://github.com/actions/cache/blob/main/examples.md#rust---cargo
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db
+            target/
+          key: ${{ runner.os }}-lint-${{ hashFiles('**/Cargo.lock') }}
       
       - name: Check
         id: check
-        run: make check
+        # Ensure OSDK is updated
+        run: |
+          make install_osdk
+          make check
 
   unit-test:
     runs-on: ubuntu-latest
@@ -28,6 +42,22 @@ jobs:
       - run: echo "Running in asterinas/asterinas:0.4.2"
 
       - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          # Thess paths are from the rust example of the action:
+          # https://github.com/actions/cache/blob/main/examples.md#rust---cargo
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db
+            target/
+          key: ${{ runner.os }}-unit-test-${{ hashFiles('**/Cargo.lock') }}
+
+      # Ensure OSDK is updated
+      - name: Install OSDK
+        run: make install_osdk
 
       - name: Usermode Unit test
         id: usermode_unit_test
@@ -47,6 +77,22 @@ jobs:
       - run: echo "Running in asterinas/asterinas:0.4.2"
 
       - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          # This paths are from https://github.com/actions/cache/blob/main/examples.md#rust---cargo
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db
+            target/
+            regression/build/
+          key: ${{ runner.os }}-integration-test-${{ hashFiles('**/Cargo.lock') }}
+      
+      # Ensure OSDK is updated
+      - name: Install OSDK
+        run: make install_osdk
 
       - name: Boot Test (Multiboot)
         id: boot_test_mb
