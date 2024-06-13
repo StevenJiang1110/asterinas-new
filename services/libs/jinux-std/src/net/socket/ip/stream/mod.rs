@@ -3,7 +3,7 @@ use smoltcp::wire::IpEndpoint;
 
 use crate::events::{IoEvents, Observer};
 use crate::fs::file_handle::FileLike;
-use crate::fs::utils::{IoctlCmd, StatusFlags};
+use crate::fs::utils::{InodeMode, IoctlCmd, Metadata, StatusFlags, SuperBlock};
 use crate::net::iface::RawTcpSocket;
 use crate::net::socket::ip::tcp_options::TcpWindowClamp;
 use crate::net::socket::util::{
@@ -212,6 +212,10 @@ impl FileLike for StreamSocket {
             State::Connected(connected_stream) => connected_stream.unregister_observer(observer),
             State::Listen(listen_stream) => listen_stream.unregister_observer(observer),
         }
+    }
+
+    fn metadata(&self) -> crate::fs::utils::Metadata {
+        Metadata::new_socket(100, InodeMode::all(), &SuperBlock::new(4096, 4096, 4096))
     }
 }
 
