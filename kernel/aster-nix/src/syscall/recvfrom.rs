@@ -28,7 +28,7 @@ pub fn sys_recvfrom(
 
     let (recv_size, socket_addr) = socket.recvfrom(&mut buffer, flags)?;
     if buf != 0 {
-        write_bytes_to_user(buf, &buffer[..recv_size])?;
+        write_bytes_to_user(buf, &mut VmReader::from(&buffer[..recv_size]))?;
     }
     if src_addr != 0 {
         write_socket_addr_to_user(&socket_addr, src_addr, addrlen_ptr)?;

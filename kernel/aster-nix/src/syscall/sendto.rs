@@ -28,7 +28,7 @@ pub fn sys_sendto(
     };
     debug!("sockfd = {sockfd}, buf = 0x{buf:x}, len = 0x{len:x}, flags = {flags:?}, socket_addr = {socket_addr:?}");
     let mut buffer = vec![0u8; len];
-    read_bytes_from_user(buf, &mut buffer)?;
+    read_bytes_from_user(buf, &mut VmWriter::from(buffer.as_mut_slice()))?;
 
     let socket = get_socket_from_fd(sockfd)?;
 

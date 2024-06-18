@@ -43,7 +43,7 @@ fn do_sys_writev(fd: FileDesc, io_vec_ptr: Vaddr, io_vec_count: usize) -> Result
             let base = io_vec.base;
             let len = io_vec.len;
             let mut buffer = vec![0u8; len];
-            read_bytes_from_user(base, &mut buffer)?;
+            read_bytes_from_user(base, &mut VmWriter::from(buffer.as_mut_slice()))?;
             buffer
         };
         let write_len = file.write(&buffer)?;
