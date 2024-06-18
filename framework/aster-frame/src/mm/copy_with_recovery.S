@@ -1,0 +1,27 @@
+/* SPDX-License-Identifier: MPL-2.0 */
+
+// Copies `size` bytes from `src` to `dst`. This function is work with exception handling
+// and can recover from a page fault. The source and destination must not overlap.
+// 
+// Returns number of bytes that failed to copy.
+//
+// Ref: [https://github.com/torvalds/linux/blob/2ab79514109578fc4b6df90633d500cf281eb689/arch/x86/lib/copy_user_64.S]
+.text
+.global copy_with_recovery
+.code64
+copy_with_recovery: # (dst: *mut u8, src: *const u8, size: usize) -> usize
+    push rcx
+    mov rcx, rdx
+.move:
+    rep movsb
+
+.exit:
+    mov rax, rcx
+    pop rcx
+    ret
+
+.pushsection .ex_table, "a"
+    .align 8
+    .quad [.move]
+    .quad [.exit]
+.popsection

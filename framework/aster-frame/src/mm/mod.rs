@@ -20,6 +20,7 @@ pub(crate) mod page;
 pub(crate) mod page_prop;
 pub(crate) mod page_table;
 mod space;
+pub(crate) mod util;
 
 use alloc::vec::Vec;
 use core::{fmt::Debug, ops::Range};
