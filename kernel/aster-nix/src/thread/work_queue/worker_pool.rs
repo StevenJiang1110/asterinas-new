@@ -4,7 +4,7 @@
 
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use aster_frame::{cpu::CpuSet, sync::WaitQueue, task::Priority};
+use ostd::{cpu::CpuSet, sync::WaitQueue, task::Priority};
 
 use super::{simple_scheduler::SimpleScheduler, worker::Worker, WorkItem, WorkPriority, WorkQueue};
 use crate::{

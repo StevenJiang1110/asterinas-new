@@ -5,8 +5,8 @@
 
 use core::ops::Range;
 
-use aster_frame::mm::VmIo;
 use aster_rights::Full;
+use ostd::mm::VmIo;
 
 use super::{
     constants::{EXFAT_FILE_NAME_LEN, MAX_NAME_LENGTH},
