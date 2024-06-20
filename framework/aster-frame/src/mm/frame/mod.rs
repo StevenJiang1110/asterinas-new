@@ -103,13 +103,13 @@ impl<'a> Frame {
     /// Returns a reader to read data from it.
     pub fn reader(&'a self) -> VmReader<'a> {
         // SAFETY: the memory of the page is contiguous and is valid during `'a`.
-        unsafe { VmReader::from_raw_parts(self.as_ptr(), self.size()) }
+        unsafe { VmReader::from_kernel_space(self.as_ptr(), self.size()) }
     }
 
     /// Returns a writer to write data into it.
     pub fn writer(&'a self) -> VmWriter<'a> {
         // SAFETY: the memory of the page is contiguous and is valid during `'a`.
-        unsafe { VmWriter::from_raw_parts_mut(self.as_mut_ptr(), self.size()) }
+        unsafe { VmWriter::from_kernel_space(self.as_mut_ptr(), self.size()) }
     }
 }
 

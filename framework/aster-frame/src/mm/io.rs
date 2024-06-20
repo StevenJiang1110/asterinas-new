@@ -8,7 +8,15 @@ use align_ext::AlignExt;
 use inherit_methods_macro::inherit_methods;
 use pod::Pod;
 
-use crate::prelude::*;
+use super::util::copy_with_recovery;
+use crate::{
+    mm::{
+        kspace::{KERNEL_BASE_VADDR, KERNEL_END_VADDR},
+        MAX_USERSPACE_VADDR,
+    },
+    prelude::*,
+    Error,
+};
 
 /// A trait that enables reading/writing data from/to a VM object,
 /// e.g., [`VmSpace`], [`FrameVec`], and [`Frame`].
@@ -160,26 +168,68 @@ impl_vmio_pointer!(&mut T, "(**self)");
 impl_vmio_pointer!(Box<T>, "(**self)");
 impl_vmio_pointer!(Arc<T>, "(**self)");
 
-/// VmReader is a reader for reading data from a contiguous range of memory.
+/// `VmReader` is a reader for reading data from a contiguous range of memory.
+///
+/// The memory range read by `VmReader` can be in either kernel space or user space.
+/// When the operating range is in kernel space, the memory within that range
+/// is guaranteed to be valid.
+/// When the operating range is in user space, it is ensured that the page table of
+/// the process creating the `VmReader` is active for the duration of `'a`.
 pub struct VmReader<'a> {
     cursor: *const u8,
     end: *const u8,
     phantom: PhantomData<&'a [u8]>,
+    /// Whether the memory scope of the `VmReader` is valid during the
+    /// entire period.
+    ensure_valid: bool,
 }
 
 impl<'a> VmReader<'a> {
-    /// Constructs a VmReader from a pointer and a length.
+    /// Constructs a `VmReader` from a pointer and a length, which represents
+    /// a memory range in kernel space.
     ///
     /// # Safety
     ///
-    /// User must ensure the memory from `ptr` to `ptr.add(len)` is contiguous.
-    /// User must ensure the memory is valid during the entire period of `'a`.
-    pub const unsafe fn from_raw_parts(ptr: *const u8, len: usize) -> Self {
+    /// Users must ensure the memory from `ptr` to `ptr.add(len)` is contiguous.
+    /// Users must ensure the memory is valid during the entire period of `'a`.
+    pub unsafe fn from_kernel_space(ptr: *const u8, len: usize) -> Self {
+        debug_assert!(KERNEL_BASE_VADDR <= ptr as usize);
+        debug_assert!(ptr.add(len) as usize <= KERNEL_END_VADDR);
+
         Self {
             cursor: ptr,
             end: ptr.add(len),
             phantom: PhantomData,
+            ensure_valid: true,
         }
+    }
+
+    /// Constructs a `VmReader` from a pointer and a length, which represents
+    /// a memory range in kernel space.
+    ///
+    /// # Safety
+    ///
+    /// Users must ensure the memory from `ptr` to `ptr.add(len)` is contiguous.
+    /// Users must ensure that the page table for the process in which this constructor is called
+    /// are active during the entire period of `'a`.
+    pub unsafe fn from_user_space(ptr: *const u8, len: usize) -> Self {
+        debug_assert!((ptr as usize).checked_add(len).unwrap_or(usize::MAX) <= MAX_USERSPACE_VADDR);
+
+        Self {
+            cursor: ptr,
+            end: ptr.add(len),
+            phantom: PhantomData,
+            ensure_valid: false,
+        }
+    }
+
+    /// Marks this `VmReader` as considering its memory scope is valid.
+    ///
+    /// # Safety
+    /// Users must ensure the memory is valid during the entire period of `'a`.
+    pub unsafe fn ensure_valid(mut self) -> Self {
+        self.ensure_valid = true;
+        self
     }
 
     /// Returns the number of bytes for the remaining data.
@@ -223,73 +273,133 @@ impl<'a> VmReader<'a> {
         self
     }
 
-    /// Reads all data into the writer until one of the two conditions is met:
+    /// Reads all data into the writer until one of the three conditions is met:
     /// 1. The reader has no remaining data.
     /// 2. The writer has no available space.
+    /// 3. The reading encounters a page fault that cannot be handled.
     ///
     /// Returns the number of bytes read.
     ///
     /// It pulls the number of bytes data from the reader and
     /// fills in the writer with the number of bytes.
     pub fn read(&mut self, writer: &mut VmWriter<'_>) -> usize {
-        let copy_len = self.remain().min(writer.avail());
+        let mut copy_len = self.remain().min(writer.avail());
         if copy_len == 0 {
             return 0;
         }
 
-        // SAFETY: the memory range is valid since `copy_len` is the minimum
-        // of the reader's remaining data and the writer's available space.
-        unsafe {
-            core::ptr::copy(self.cursor, writer.cursor, copy_len);
-            self.cursor = self.cursor.add(copy_len);
-            writer.cursor = writer.cursor.add(copy_len);
+        if self.ensure_valid && writer.ensure_valid {
+            // SAFETY: the memory range is valid since `copy_len` is the minimum
+            // of the reader's remaining data and the writer's available space.
+            unsafe {
+                core::ptr::copy(self.cursor, writer.cursor, copy_len);
+                self.cursor = self.cursor.add(copy_len);
+                writer.cursor = writer.cursor.add(copy_len);
+            }
+        } else {
+            // SAFETY: The memory region that cannot be guaranteed as valid
+            // is in the user space. In this case, `copy_with_recovery` is able to
+            // recover to execution when handling invalid memory regions and
+            // will only copy the valid memory areas, which is considered safe.
+            unsafe {
+                let failed_bytes = copy_with_recovery(writer.cursor, self.cursor, copy_len);
+                copy_len -= failed_bytes;
+                self.cursor = self.cursor.add(copy_len);
+                writer.cursor = writer.cursor.add(copy_len);
+            }
         }
         copy_len
     }
 
-    /// Read a value of `Pod` type.
+    /// Reads a value of `Pod` type.
     ///
-    /// # Panic
-    ///
-    /// If the length of the `Pod` type exceeds `self.remain()`, then this method will panic.
-    pub fn read_val<T: Pod>(&mut self) -> T {
-        assert!(self.remain() >= core::mem::size_of::<T>());
+    /// If the length of the `Pod` type exceeds `self.remain()`,
+    /// or the value can not be read completely,
+    /// this method will return `Err`.
+    pub fn read_val<T: Pod>(&mut self) -> Result<T> {
+        if self.remain() < core::mem::size_of::<T>() {
+            return Err(Error::IoError);
+        }
 
         let mut val = T::new_uninit();
         let mut writer = VmWriter::from(val.as_bytes_mut());
         let read_len = self.read(&mut writer);
 
-        val
+        if read_len == core::mem::size_of::<T>() {
+            Ok(val)
+        } else {
+            Err(Error::IoError)
+        }
     }
 }
 
 impl<'a> From<&'a [u8]> for VmReader<'a> {
     fn from(slice: &'a [u8]) -> Self {
         // SAFETY: the range of memory is contiguous and is valid during `'a`.
-        unsafe { Self::from_raw_parts(slice.as_ptr(), slice.len()) }
+        unsafe { Self::from_kernel_space(slice.as_ptr(), slice.len()) }
     }
 }
 
-/// VmWriter is a writer for writing data to a contiguous range of memory.
+/// `VmWriter` is a writer for writing data to a contiguous range of memory.
+///
+/// The memory range write by `VmWriter` can be in either kernel space or user space.
+/// When the operating range is in kernel space, the memory within that range
+/// is guaranteed to be valid.
+/// When the operating range is in user space, it is ensured that the page table of
+/// the process creating the `VmWriter` is active for the duration of `'a`.
 pub struct VmWriter<'a> {
     cursor: *mut u8,
     end: *mut u8,
     phantom: PhantomData<&'a mut [u8]>,
+    ensure_valid: bool,
 }
 
 impl<'a> VmWriter<'a> {
-    /// Constructs a VmWriter from a pointer and a length.
+    /// Constructs a `VmWriter` from a pointer and a length, which represents
+    /// a memory range in kernel space.
     ///
     /// # Safety
     ///
-    /// User must ensure the memory from `ptr` to `ptr.add(len)` is contiguous.
-    /// User must ensure the memory is valid during the entire period of `'a`.
-    pub const unsafe fn from_raw_parts_mut(ptr: *mut u8, len: usize) -> Self {
+    /// Users must ensure the memory from `ptr` to `ptr.add(len)` is contiguous.
+    /// Users must ensure the memory is valid during the entire period of `'a`.
+    pub unsafe fn from_kernel_space(ptr: *mut u8, len: usize) -> Self {
+        debug_assert!(KERNEL_BASE_VADDR <= ptr as usize);
+        debug_assert!(ptr.add(len) as usize <= KERNEL_END_VADDR);
+
         Self {
             cursor: ptr,
             end: ptr.add(len),
             phantom: PhantomData,
+            ensure_valid: true,
         }
+    }
+
+    /// Constructs a `VmWriter` from a pointer and a length, which represents
+    /// a memory range in kernel space.
+    ///
+    /// # Safety
+    ///
+    /// Users must ensure the memory from `ptr` to `ptr.add(len)` is contiguous.
+    /// Users must ensure that the page table for the process in which this constructor is called
+    /// are active during the entire period of `'a`.
+    pub unsafe fn from_user_space(ptr: *mut u8, len: usize) -> Self {
+        debug_assert!((ptr as usize).checked_add(len).unwrap_or(usize::MAX) <= MAX_USERSPACE_VADDR);
+
+        Self {
+            cursor: ptr,
+            end: ptr.add(len),
+            phantom: PhantomData,
+            ensure_valid: false,
+        }
+    }
+
+    /// Marks this `VmWriter` as considering its memory scope is valid.
+    ///
+    /// # Safety
+    /// Users must ensure the memory is valid during the entire period of `'a`.
+    pub unsafe fn ensure_valid(mut self) -> Self {
+        self.ensure_valid = true;
+        self
     }
 
     /// Returns the number of bytes for the available space.
@@ -333,28 +443,61 @@ impl<'a> VmWriter<'a> {
         self
     }
 
-    /// Writes data from the reader until one of the two conditions is met:
+    /// Writes data from the reader until one of the three conditions is met:
     /// 1. The writer has no available space.
     /// 2. The reader has no remaining data.
+    /// 3. The writing encounters a page fault that cannot be handled.
     ///
     /// Returns the number of bytes written.
     ///
     /// It pulls the number of bytes data from the reader and
     /// fills in the writer with the number of bytes.
     pub fn write(&mut self, reader: &mut VmReader<'_>) -> usize {
-        let copy_len = self.avail().min(reader.remain());
+        let mut copy_len = self.avail().min(reader.remain());
         if copy_len == 0 {
             return 0;
         }
 
-        // SAFETY: the memory range is valid since `copy_len` is the minimum
-        // of the reader's remaining data and the writer's available space.
-        unsafe {
-            core::ptr::copy(reader.cursor, self.cursor, copy_len);
-            self.cursor = self.cursor.add(copy_len);
-            reader.cursor = reader.cursor.add(copy_len);
+        if self.ensure_valid && reader.ensure_valid {
+            // SAFETY: the memory range is valid since `copy_len` is the minimum
+            // of the reader's remaining data and the writer's available space.
+            unsafe {
+                core::ptr::copy(reader.cursor, self.cursor, copy_len);
+                self.cursor = self.cursor.add(copy_len);
+                reader.cursor = reader.cursor.add(copy_len);
+            }
+        } else {
+            // SAFETY: The memory region that cannot be guaranteed as valid
+            // is in the user space. In this case, `copy_with_recovery` is able to
+            // recover to execution when handling invalid memory regions and
+            // will only copy the valid memory areas, which is considered safe.
+            unsafe {
+                let failed_bytes = copy_with_recovery(self.cursor, reader.cursor, copy_len);
+                copy_len -= failed_bytes;
+                self.cursor = self.cursor.add(copy_len);
+                reader.cursor = reader.cursor.add(copy_len);
+            }
         }
         copy_len
+    }
+
+    /// Writes a value of `Pod` type.
+    ///
+    /// If the length of the `Pod` type exceeds `self.avail()`,
+    /// or the value can not be write completely, this method will return `Err`.
+    pub fn write_val<T: Pod>(&mut self, new_val: &T) -> Result<()> {
+        if self.avail() < core::mem::size_of::<T>() {
+            return Err(Error::IoError);
+        }
+
+        let mut reader = VmReader::from(new_val.as_bytes());
+        let write_len = self.write(&mut reader);
+
+        if write_len == core::mem::size_of::<T>() {
+            Ok(())
+        } else {
+            Err(Error::IoError)
+        }
     }
 
     /// Fills the available space by repeating `value`.
@@ -363,11 +506,13 @@ impl<'a> VmWriter<'a> {
     ///
     /// # Panic
     ///
-    /// The size of the available space must be a multiple of the size of `value`.
+    /// The size of the available space must be a multiple of the size of `value`
+    /// and must ensure the memory scope is valid.
     /// Otherwise, the method would panic.
     pub fn fill<T: Pod>(&mut self, value: T) -> usize {
         let avail = self.avail();
 
+        assert!(self.ensure_valid);
         assert!((self.cursor as *mut T).is_aligned());
         assert!(avail % core::mem::size_of::<T>() == 0);
 
@@ -391,6 +536,6 @@ impl<'a> VmWriter<'a> {
 impl<'a> From<&'a mut [u8]> for VmWriter<'a> {
     fn from(slice: &'a mut [u8]) -> Self {
         // SAFETY: the range of memory is contiguous and is valid during `'a`.
-        unsafe { Self::from_raw_parts_mut(slice.as_mut_ptr(), slice.len()) }
+        unsafe { Self::from_kernel_space(slice.as_mut_ptr(), slice.len()) }
     }
 }
