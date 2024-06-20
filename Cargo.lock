@@ -129,15 +129,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aster-main"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.49",
-]
-
-[[package]]
 name = "aster-network"
 version = "0.1.0"
 dependencies = [
@@ -1029,7 +1020,6 @@ dependencies = [
  "align_ext",
  "aml",
  "array-init",
- "aster-main",
  "bit_field",
  "bitflags 1.3.2",
  "bitvec",
@@ -1046,6 +1036,7 @@ dependencies = [
  "linux-boot-params",
  "log",
  "multiboot2",
+ "ostd-macros",
  "pod",
  "rsdp",
  "spin 0.9.8",
@@ -1057,6 +1048,15 @@ dependencies = [
  "x86",
  "x86_64",
  "xarray",
+]
+
+[[package]]
+name = "ostd-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.49",
 ]
 
 [[package]]
