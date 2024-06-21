@@ -272,7 +272,7 @@ mod test {
         Thread,
     };
 
-    #[ktest]
+    #[ostd::test]
     fn test_condvar_wait() {
         let pair = Arc::new((Mutex::new(false), Condvar::new()));
         let pair2 = Arc::clone(&pair);
@@ -295,7 +295,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[ostd::test]
     fn test_condvar_wait_timeout() {
         let pair = Arc::new((Mutex::new(false), Condvar::new()));
         let pair2 = Arc::clone(&pair);
@@ -320,7 +320,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[ostd::test]
     fn test_condvar_wait_while() {
         let pair = Arc::new((Mutex::new(true), Condvar::new()));
         let pair2 = Arc::clone(&pair);
@@ -342,7 +342,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[ostd::test]
     fn test_condvar_wait_timeout_while() {
         let pair = Arc::new((Mutex::new(true), Condvar::new()));
         let pair2 = Arc::clone(&pair);

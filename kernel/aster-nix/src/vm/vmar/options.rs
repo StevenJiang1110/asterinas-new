@@ -146,13 +146,13 @@ mod test {
         vmo::{VmoOptions, VmoRightsOp},
     };
 
-    #[ktest]
+    #[ostd::test]
     fn root_vmar() {
         let vmar = Vmar::<Full>::new_root();
         assert!(vmar.size() == ROOT_VMAR_CAP_ADDR);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn child_vmar() {
         let root_vmar = Vmar::<Full>::new_root();
         let root_vmar_dup = root_vmar.dup().unwrap();
@@ -171,7 +171,7 @@ mod test {
             .is_err());
     }
 
-    #[ktest]
+    #[ostd::test]
     fn map_vmo() {
         let root_vmar = Vmar::<Full>::new_root();
         let vmo = VmoOptions::<Full>::new(PAGE_SIZE).alloc().unwrap().to_dyn();
@@ -197,7 +197,7 @@ mod test {
         assert!(root_vmar.read_val::<u8>(another_map_offset).unwrap() == 100);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn handle_page_fault() {
         const OFFSET: usize = 0x1000_0000;
         let root_vmar = Vmar::<Full>::new_root();

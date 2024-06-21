@@ -288,21 +288,21 @@ mod test {
         assert!(cond.load(Ordering::Relaxed));
     }
 
-    #[ktest]
+    #[crate::test]
     fn queue_wake_one() {
         queue_wake(|queue| {
             queue.wake_one();
         });
     }
 
-    #[ktest]
+    #[crate::test]
     fn queue_wake_all() {
         queue_wake(|queue| {
             queue.wake_all();
         });
     }
 
-    #[ktest]
+    #[crate::test]
     fn waiter_wake_twice() {
         let (_waiter, waker) = Waiter::new_pair();
 
@@ -310,7 +310,7 @@ mod test {
         assert!(!waker.wake_up());
     }
 
-    #[ktest]
+    #[crate::test]
     fn waiter_wake_drop() {
         let (waiter, waker) = Waiter::new_pair();
 
@@ -318,7 +318,7 @@ mod test {
         assert!(!waker.wake_up());
     }
 
-    #[ktest]
+    #[crate::test]
     fn waiter_wake_async() {
         let (waiter, waker) = Waiter::new_pair();
 
@@ -340,7 +340,7 @@ mod test {
         assert!(cond.load(Ordering::Relaxed));
     }
 
-    #[ktest]
+    #[crate::test]
     fn waiter_wake_reorder() {
         let (waiter, waker) = Waiter::new_pair();
 

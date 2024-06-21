@@ -192,7 +192,7 @@ mod test {
     use super::*;
     use crate::mm::FrameAllocOptions;
 
-    #[ktest]
+    #[crate::test]
     fn map_with_coherent_device() {
         let vm_segment = FrameAllocOptions::new(1)
             .is_contiguous(true)
@@ -202,7 +202,7 @@ mod test {
         assert!(dma_coherent.paddr() == vm_segment.paddr());
     }
 
-    #[ktest]
+    #[crate::test]
     fn map_with_incoherent_device() {
         let vm_segment = FrameAllocOptions::new(1)
             .is_contiguous(true)
@@ -215,7 +215,7 @@ mod test {
         assert!(page_table.query(vaddr).unwrap().1.cache == CachePolicy::Uncacheable);
     }
 
-    #[ktest]
+    #[crate::test]
     fn duplicate_map() {
         let vm_segment_parent = FrameAllocOptions::new(2)
             .is_contiguous(true)
@@ -227,7 +227,7 @@ mod test {
         assert!(dma_coherent_child.is_err());
     }
 
-    #[ktest]
+    #[crate::test]
     fn read_and_write() {
         let vm_segment = FrameAllocOptions::new(2)
             .is_contiguous(true)
@@ -242,7 +242,7 @@ mod test {
         assert_eq!(buf_write, buf_read);
     }
 
-    #[ktest]
+    #[crate::test]
     fn reader_and_wirter() {
         let vm_segment = FrameAllocOptions::new(2)
             .is_contiguous(true)

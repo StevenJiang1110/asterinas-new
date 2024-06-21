@@ -481,7 +481,7 @@ mod test {
 
     use super::*;
 
-    #[ktest]
+    #[ostd::test]
     fn alloc_vmo() {
         let vmo = VmoOptions::<Full>::new(PAGE_SIZE).alloc().unwrap();
         assert_eq!(vmo.size(), PAGE_SIZE);
@@ -489,7 +489,7 @@ mod test {
         assert_eq!(vmo.read_val::<usize>(0).unwrap(), 0);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn alloc_continuous_vmo() {
         let vmo = VmoOptions::<Full>::new(10 * PAGE_SIZE)
             .flags(VmoFlags::CONTIGUOUS)
@@ -498,7 +498,7 @@ mod test {
         assert_eq!(vmo.size(), 10 * PAGE_SIZE);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn write_and_read() {
         let vmo = VmoOptions::<Full>::new(PAGE_SIZE).alloc().unwrap();
         let val = 42u8;
@@ -512,7 +512,7 @@ mod test {
         assert_eq!(read_val, 0x78563412)
     }
 
-    #[ktest]
+    #[ostd::test]
     fn slice_child() {
         let parent = VmoOptions::<Full>::new(2 * PAGE_SIZE).alloc().unwrap();
         let parent_dup = parent.dup();
@@ -527,7 +527,7 @@ mod test {
         assert_eq!(parent.read_val::<u32>(99).unwrap(), 0x1234);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn cow_child() {
         let parent = VmoOptions::<Full>::new(2 * PAGE_SIZE).alloc().unwrap();
         parent.write_val(1, &42u8).unwrap();
@@ -559,7 +559,7 @@ mod test {
         assert_eq!(cow_child.read_val::<u32>(2).unwrap(), 0x1234);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn resize() {
         let vmo = VmoOptions::<Full>::new(PAGE_SIZE)
             .flags(VmoFlags::RESIZABLE)
@@ -574,7 +574,7 @@ mod test {
         assert_eq!(vmo.read_val::<u8>(10).unwrap(), 42);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn resize_cow() {
         let vmo = VmoOptions::<Full>::new(10 * PAGE_SIZE)
             .flags(VmoFlags::RESIZABLE)

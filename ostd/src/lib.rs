@@ -23,9 +23,6 @@
 #![warn(missing_docs)]
 
 extern crate alloc;
-#[cfg(ktest)]
-#[macro_use]
-extern crate ktest;
 extern crate static_assertions;
 
 pub mod arch;
@@ -45,7 +42,11 @@ pub mod task;
 pub mod trap;
 pub mod user;
 
+#[cfg(ktest)]
+pub use ktest::*;
 pub use ostd_macros::main;
+#[cfg(ktest)]
+pub use ostd_macros::test;
 #[cfg(feature = "intel_tdx")]
 use tdx_guest::init_tdx;
 
@@ -110,18 +111,18 @@ fn invoke_ffi_init_funcs() {
 /// Simple unit tests for the ktest framework.
 #[cfg(ktest)]
 mod test {
-    #[ktest]
+    #[test]
     fn trivial_assertion() {
         assert_eq!(0, 0);
     }
 
-    #[ktest]
+    #[test]
     #[should_panic]
     fn failing_assertion() {
         assert_eq!(0, 1);
     }
 
-    #[ktest]
+    #[test]
     #[should_panic(expected = "expected panic message")]
     fn expect_panic() {
         panic!("expected panic message");

@@ -103,7 +103,7 @@ impl FrameAllocOptions {
 }
 
 #[cfg(ktest)]
-#[ktest]
+#[crate::test]
 fn test_alloc_dealloc() {
     // Here we allocate and deallocate frames in random orders to test the allocator.
     // We expect the test to fail if the underlying implementation panics.

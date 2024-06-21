@@ -11,7 +11,7 @@ use crate::mm::{
 
 const PAGE_SIZE: usize = 4096;
 
-#[ktest]
+#[crate::test]
 fn test_range_check() {
     let pt = PageTable::<UserMode>::empty();
     let good_va = 0..PAGE_SIZE;
@@ -26,7 +26,7 @@ fn test_range_check() {
     assert!(unsafe { pt.unmap(&bad_va2) }.is_err());
 }
 
-#[ktest]
+#[crate::test]
 fn test_tracked_map_unmap() {
     let pt = PageTable::<UserMode>::empty();
 
@@ -40,7 +40,7 @@ fn test_tracked_map_unmap() {
     assert!(pt.query(from.start + 10).is_none());
 }
 
-#[ktest]
+#[crate::test]
 fn test_untracked_map_unmap() {
     let pt = PageTable::<KernelMode>::empty();
     const UNTRACKED_OFFSET: usize = crate::mm::kspace::LINEAR_MAPPING_BASE_VADDR;
@@ -71,7 +71,7 @@ fn test_untracked_map_unmap() {
     let _ = ManuallyDrop::new(pt);
 }
 
-#[ktest]
+#[crate::test]
 fn test_user_copy_on_write() {
     let pt = PageTable::<UserMode>::empty();
     let from = PAGE_SIZE..PAGE_SIZE * 2;
@@ -125,7 +125,7 @@ impl PagingConstsTrait for BasePagingConsts {
     const PTE_SIZE: usize = core::mem::size_of::<PageTableEntry>();
 }
 
-#[ktest]
+#[crate::test]
 fn test_base_protect_query() {
     let pt = PageTable::<UserMode>::empty();
 
@@ -169,7 +169,7 @@ impl PagingConstsTrait for VeryHugePagingConsts {
     const PTE_SIZE: usize = core::mem::size_of::<PageTableEntry>();
 }
 
-#[ktest]
+#[crate::test]
 fn test_untracked_large_protect_query() {
     let pt = PageTable::<KernelMode, PageTableEntry, VeryHugePagingConsts>::empty();
     const UNTRACKED_OFFSET: usize = crate::mm::kspace::LINEAR_MAPPING_BASE_VADDR;

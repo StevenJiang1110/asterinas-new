@@ -21,19 +21,18 @@
 //! module, e.g.:
 //!
 //! ```rust
-//! use ktest::ktest;
 //! #[cfg(ktest)]
 //! mod test {
-//!     #[ktest]
+//!     #[ostd::test]
 //!     fn trivial_assertion() {
 //!         assert_eq!(0, 0);
 //!     }
-//!     #[ktest]
+//!     #[ostd::test]
 //!     #[should_panic]
 //!     fn failing_assertion() {
 //!         assert_eq!(0, 1);
 //!     }
-//!     #[ktest]
+//!     #[ostd::test]
 //!     #[should_panic(expected = "expected panic message")]
 //!     fn expect_panic() {
 //!         panic!("expected panic message");
@@ -41,18 +40,17 @@
 //! }
 //! ```
 //!
-//! And also, any crates using the ktest framework should be linked with ostd
-//! and import the `ktest` crate:
+//! Any crates using the ktest framework should be linked with ostd.
 //!
 //! ```toml
 //! # Cargo.toml
 //! [dependencies]
-//! ktest = { path = "relative/path/to/ktest" }
+//! ostd = { path = "relative/path/to/ostd" }
 //! ```
 //!
-//! By the way, `#[ktest]` attribute along also works, but it hinders test control
+//! By the way, `#[ostd::test]` attribute along also works, but it hinders test control
 //! using cfgs since plain attribute marked test will be executed in all test runs
-//! no matter what cfgs are passed to the compiler. More importantly, using `#[ktest]`
+//! no matter what cfgs are passed to the compiler. More importantly, using `#[ostd::test]`
 //! without cfgs occupies binary real estate since the `.ktest_array` section is not
 //! explicitly stripped in normal builds.
 //!
@@ -95,8 +93,6 @@ pub mod tree;
 
 extern crate alloc;
 use alloc::{boxed::Box, string::String};
-
-pub use ktest_proc_macro::ktest;
 
 #[derive(Clone, Debug)]
 pub struct PanicInfo {

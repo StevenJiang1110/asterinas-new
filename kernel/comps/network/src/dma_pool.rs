@@ -9,7 +9,6 @@ use alloc::{
 use core::ops::Range;
 
 use bitvec::{array::BitArray, prelude::Lsb0};
-use ktest::ktest;
 use ostd::{
     mm::{
         Daddr, DmaDirection, DmaStream, FrameAllocOptions, HasDaddr, VmReader, VmWriter, PAGE_SIZE,
@@ -290,7 +289,7 @@ mod test {
 
     use super::*;
 
-    #[ktest]
+    #[ostd::test]
     fn alloc_page_size_segment() {
         let pool = DmaPool::new(PAGE_SIZE, 0, 100, DmaDirection::ToDevice, false);
         let segments1: Vec<_> = (0..100)
@@ -307,7 +306,7 @@ mod test {
         drop(segments1);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn write_to_dma_segment() {
         let pool: Arc<DmaPool> = DmaPool::new(PAGE_SIZE, 1, 2, DmaDirection::ToDevice, false);
         let segment = pool.alloc_segment().unwrap();
@@ -317,7 +316,7 @@ mod test {
         assert_eq!(size, data.len());
     }
 
-    #[ktest]
+    #[ostd::test]
     fn free_pool_pages() {
         let pool: Arc<DmaPool> = DmaPool::new(PAGE_SIZE, 10, 50, DmaDirection::ToDevice, false);
         let segments1: Vec<_> = (0..100)
@@ -334,7 +333,7 @@ mod test {
         assert_eq!(pool.num_pages(), 50);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn alloc_small_size_segment() {
         const SEGMENT_SIZE: usize = PAGE_SIZE / 4;
         let pool: Arc<DmaPool> =
@@ -354,7 +353,7 @@ mod test {
         assert_eq!(pool.num_pages(), 10);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn read_dma_segments() {
         const SEGMENT_SIZE: usize = PAGE_SIZE / 4;
         let pool: Arc<DmaPool> =

@@ -202,7 +202,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[ostd::test]
     fn schedule_taskless() {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         const SCHEDULE_TIMES: usize = 10;

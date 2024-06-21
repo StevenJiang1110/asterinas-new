@@ -127,10 +127,8 @@ impl Mul<u32> for Coeff {
 
 #[cfg(ktest)]
 mod test {
-    use ktest::ktest;
-
     use super::*;
-    #[ktest]
+    #[ostd::test]
     fn calculation() {
         let coeff = Coeff::new(23456, 56789, 1_000_000_000);
         assert!(coeff * 0 as u64 == 0);

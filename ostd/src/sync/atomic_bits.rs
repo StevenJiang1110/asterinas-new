@@ -294,7 +294,7 @@ impl fmt::Debug for AtomicBits {
 mod test {
     use super::*;
 
-    #[ktest]
+    #[crate::test]
     fn new() {
         let bits = AtomicBits::new_zeroes(1);
         assert!(bits.len() == 1);
@@ -309,7 +309,7 @@ mod test {
         assert!(bits.len() == 65);
     }
 
-    #[ktest]
+    #[crate::test]
     fn set_get() {
         let bits = AtomicBits::new_zeroes(128);
         for i in 0..bits.len() {
@@ -334,7 +334,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[crate::test]
     fn iter_ones() {
         let bits = AtomicBits::new_zeroes(1);
         assert!(bits.iter_ones().count() == 0);
@@ -359,7 +359,7 @@ mod test {
         assert!(bits.iter_ones().count() == 3);
     }
 
-    #[ktest]
+    #[crate::test]
     fn iter_zeroes() {
         let bits = AtomicBits::new_ones(1);
         assert!(bits.iter_zeroes().count() == 0);
@@ -386,7 +386,7 @@ mod test {
         assert!(bits.iter_zeroes().count() == 5);
     }
 
-    #[ktest]
+    #[crate::test]
     fn iter() {
         let bits = AtomicBits::new_zeroes(7);
         assert!(bits.iter().all(|bit| bit == false));

@@ -19,7 +19,7 @@ pub enum KtestResult {
     Failed,
 }
 
-/// Run all the tests registered by `#[ktest]` in the `.ktest_array` section.
+/// Run all the tests registered by `#[ostd::test]` in the `.ktest_array` section.
 ///
 /// Need to provide a print function `print` to print the test result, and a `catch_unwind`
 /// implementation to catch the panic.

@@ -332,7 +332,7 @@ impl TaskOptions {
 
 #[cfg(ktest)]
 mod test {
-    #[ktest]
+    #[crate::test]
     fn create_task() {
         let task = || {
             assert_eq!(1, 1);
@@ -344,7 +344,7 @@ mod test {
         task_option.run();
     }
 
-    #[ktest]
+    #[crate::test]
     fn spawn_task() {
         let task = || {
             assert_eq!(1, 1);

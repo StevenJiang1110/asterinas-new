@@ -713,7 +713,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[ostd::test]
     fn init_process() {
         crate::time::clocks::init_for_ktest();
         let process = new_process(None);
@@ -721,7 +721,7 @@ mod test {
         assert!(process.session().is_none());
     }
 
-    #[ktest]
+    #[ostd::test]
     fn init_process_in_session() {
         crate::time::clocks::init_for_ktest();
         let process = new_process_in_session(None);
@@ -730,7 +730,7 @@ mod test {
         remove_session_and_group(process);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn to_new_session() {
         crate::time::clocks::init_for_ktest();
         let process = new_process_in_session(None);

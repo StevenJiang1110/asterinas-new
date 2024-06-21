@@ -159,12 +159,12 @@ mod test {
         create_result.unwrap()
     }
 
-    #[ktest]
+    #[ostd::test]
     fn new_exfat() {
         load_exfat();
     }
 
-    #[ktest]
+    #[ostd::test]
     fn create() {
         let fs = load_exfat();
         let root = fs.root_inode() as Arc<dyn Inode>;
@@ -215,7 +215,7 @@ mod test {
         );
     }
 
-    #[ktest]
+    #[ostd::test]
     fn create_and_list_file() {
         let mut file_names: Vec<String> = (0..20).map(|x| x.to_string().repeat(10)).collect();
         file_names.sort();
@@ -264,7 +264,7 @@ mod test {
         assert!(sub_inodes.len() == file_names.len() - file_names.len() / 3);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn unlink_single_file() {
         let fs = load_exfat();
         let root = fs.root_inode() as Arc<dyn Inode>;
@@ -315,7 +315,7 @@ mod test {
         );
     }
 
-    #[ktest]
+    #[ostd::test]
     fn unlink_multiple_files() {
         let file_num: u32 = 30; // This shouldn't be too large, better not allocate new clusters for root dir
         let mut file_names: Vec<String> = (0..file_num).map(|x| x.to_string()).collect();
@@ -375,7 +375,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[ostd::test]
     fn rmdir() {
         let fs = load_exfat();
         let root = fs.root_inode() as Arc<dyn Inode>;
@@ -445,7 +445,7 @@ mod test {
         );
     }
 
-    #[ktest]
+    #[ostd::test]
     fn rename_file() {
         let fs = load_exfat();
         let root = fs.root_inode() as Arc<dyn Inode>;
@@ -556,7 +556,7 @@ mod test {
         );
     }
 
-    #[ktest]
+    #[ostd::test]
     fn rename_dir() {
         let fs = load_exfat();
         let root = fs.root_inode() as Arc<dyn Inode>;
@@ -609,7 +609,7 @@ mod test {
         assert!(rename_dir_to_an_exist_empty_folder.is_ok());
     }
 
-    #[ktest]
+    #[ostd::test]
     fn write_and_read_file_direct() {
         let fs = load_exfat();
         let root = fs.root_inode() as Arc<dyn Inode>;
@@ -642,7 +642,7 @@ mod test {
         assert!(buf.eq(&read), "File mismatch. Data read result:{:?}", read);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn write_and_read_file() {
         let fs = load_exfat();
         let root = fs.root_inode() as Arc<dyn Inode>;
@@ -674,7 +674,7 @@ mod test {
         assert!(buf.eq(&read), "File mismatch. Data read result:{:?}", read);
     }
 
-    #[ktest]
+    #[ostd::test]
     fn interleaved_write() {
         let fs = load_exfat();
         let root = fs.root_inode() as Arc<dyn Inode>;
@@ -720,7 +720,7 @@ mod test {
         );
     }
 
-    #[ktest]
+    #[ostd::test]
     fn bitmap_modify_bit() {
         let fs = load_exfat();
         let bitmap_binding = fs.bitmap();
@@ -778,7 +778,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[ostd::test]
     fn bitmap_modify_chunk() {
         let fs = load_exfat();
         let bitmap_binding = fs.bitmap();
@@ -840,7 +840,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[ostd::test]
     fn bitmap_find() {
         let fs = load_exfat();
         let bitmap_binding = fs.bitmap();
@@ -881,7 +881,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[ostd::test]
     fn resize_single_file() {
         let fs = load_exfat();
         let root = fs.root_inode();
@@ -969,7 +969,7 @@ mod test {
         );
     }
 
-    #[ktest]
+    #[ostd::test]
     fn resize_multiple_files() {
         let fs = load_exfat();
         let cluster_size = fs.cluster_size();
@@ -1008,7 +1008,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[ostd::test]
     fn resize_and_write() {
         let fs = load_exfat();
         let root = fs.root_inode();
@@ -1059,7 +1059,7 @@ mod test {
         }
     }
 
-    #[ktest]
+    #[ostd::test]
     fn random_op_sequence() {
         let fs = load_exfat();
         let root = fs.root_inode();

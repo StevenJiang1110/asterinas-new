@@ -67,7 +67,7 @@ The `src/lib.rs` of library project only contains
 a simple kernel mode unit test.
 It follows a similar code pattern as user mode unit tests.
 The test module is marked with the `#[cfg(ktest)]` macro,
-and each test case is marked with `#[ktest]`.
+and each test case is marked with `#[ostd::test]`.
 
 ```rust
 {{#include ../../../../osdk/src/commands/new/lib.template}}
@@ -82,10 +82,6 @@ The dependency version may change over time.
 
 ```toml
 [dependencies.ostd]
-git = "https://github.com/asterinas/asterinas"
-branch = "main"
-
-[dependencies.ktest]
 git = "https://github.com/asterinas/asterinas"
 branch = "main"
 ```

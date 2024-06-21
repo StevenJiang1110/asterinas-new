@@ -543,7 +543,7 @@ mod test {
 
     use crate::fs::utils::Channel;
 
-    #[ktest]
+    #[ostd::test]
     fn test_non_copy() {
         #[derive(Clone, Debug, PartialEq, Eq)]
         struct NonCopy(Arc<usize>);
