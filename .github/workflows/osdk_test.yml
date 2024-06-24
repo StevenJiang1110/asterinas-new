@@ -1,15 +1,10 @@
 name: OSDK Test
 
 on:
-  pull_request:
-    paths:
-      - framework/**
-      - osdk/**
-      - tools/**
-      - Cargo.toml
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Docker image build"]
+    types:
+      - completed
 
 jobs:
   osdk-test:
