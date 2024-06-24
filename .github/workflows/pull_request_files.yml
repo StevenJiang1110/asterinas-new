@@ -1,0 +1,38 @@
+name: Pull Request Files
+
+on:
+  pull_request:
+
+jobs:
+  version_changes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get whether VERSION changes
+        id: changed-version
+        uses: tj-actions/changed-files@v44
+        with:
+          since_last_remote_commit: true 
+          # Avoid using single or double quotes for multiline patterns
+      
+      - name: List all changed files
+        env:
+          ALL_CHANGED_FILES: ${{ steps.changed-version.outputs.all_changed_files }}
+          CHENGED: ${{ steps.changed-version.outputs.any_changed }}
+        run: |
+          for file in ${ALL_CHANGED_FILES}; do
+            echo "$file was changed"
+          done
+          echo "${CHANGED}"
+      
+      - name: Echo positive results
+        if: steps.changed-version.outputs.any_changed == 'true'
+        run: |
+          echo "version changes"
+      
+      - name: Echo negative results
+        if: steps.changed-version.outputs.any_changed != 'true'
+        run: |
+          echo "version not changed"
+

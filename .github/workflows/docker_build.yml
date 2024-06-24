@@ -3,13 +3,14 @@ name: Docker image build
 on:
   workflow_dispatch:
   push:
-    paths:
-      - VERSION
     branches:
       - main
+    tags:
+      - 'v*'
 
 jobs:
   docker:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
