@@ -1,0 +1,14 @@
+# This workflow is used to trigger other workflows that should be triggered by pull request
+
+name: On Pull Request
+
+on:
+  pull_request:
+    paths-ignore:
+      - VERSION
+
+jobs:
+  echo_on_pr:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "On Pull Request"
