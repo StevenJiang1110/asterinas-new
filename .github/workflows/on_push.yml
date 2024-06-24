@@ -1,18 +1,17 @@
 # This workflow is used to trigger other workflows that should be triggered by pull request
 
-name: On Pull Request
+name: On Push
 
 on:
-  pull_request:
+  push:
     paths-ignore:
       - VERSION
 
 jobs:
-  echo_on_pr:
+  echo_on_push:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "On Pull request"
+      - run: echo "On Push"
   
-  OSDK test in PR:
+  OSDK test in Push:
     uses: ./.github/workflows/osdk_test.yml
-  
