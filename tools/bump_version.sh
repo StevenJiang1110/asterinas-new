@@ -103,7 +103,7 @@ if [[ "$bump_type" == "--help" || "$bump_type" == "-h" ]]; then
 fi
 
 validate_bump_type
-new_version=$(bump_version ${current_version})
+new_version=0.4.2
 
 # Update the package version in Cargo.toml
 update_package_version ${CARGO_TOML_PATH}

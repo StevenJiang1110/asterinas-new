@@ -1,18 +1,19 @@
 name: OSDK Test
 
 on:
-  workflow_run:
-    workflows: ["Docker image build", "On Pull Request"]
-    types:
-      - completed
+  workflow_call:
+  # workflow_run:
+  #   workflows: ["Docker image build", "On Pull Request"]
+  #   types:
+  #     - completed
 
 jobs:
   osdk-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    container: asterinas/asterinas:0.5.0
+    container: asterinas/asterinas:0.4.2
     steps:
-      - run: echo "Running in asterinas/asterinas:0.5.0"
+      - run: echo "Running in asterinas/asterinas:0.4.2"
 
       - uses: actions/checkout@v4
 
@@ -32,9 +33,9 @@ jobs:
   osdk-doc-env-test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    container: asterinas/osdk:0.5.0
+    container: asterinas/osdk:0.4.2
     steps:
-      - run: echo "Running in asterinas/osdk:0.5.0"
+      - run: echo "Running in asterinas/osdk:0.4.2"
 
       - uses: actions/checkout@v4
 

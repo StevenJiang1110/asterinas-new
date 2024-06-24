@@ -12,3 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: echo "On Pull Request"
+
+      - name: OSDK test
+        uses: ./.github/workflows/osdk_test.yml
+  
