@@ -1,16 +1,17 @@
 name: Update Website
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - docs/**
       - .github/workflows/update-website.yml
-  push:
-    branches:
-      - main
-    paths:
-      - docs/**
-      - .github/workflows/update-website.yml
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - docs/**
+  #     - .github/workflows/update-website.yml
 
 jobs:
   build_and_deploy:

@@ -6,11 +6,13 @@ on:
     # UTC 00:00 everyday
     - cron: "0 0 * * *"
   # Events for API docs of new release
-  push:
-    branches:
-      - main
-    paths:
-      - VERSION
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - VERSION
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   build_and_upload:

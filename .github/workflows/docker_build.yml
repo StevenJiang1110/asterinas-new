@@ -2,11 +2,12 @@ name: Docker image build
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - VERSION
-    branches:
-      - main
+  workflow_call:
+  # push:
+  #   paths:
+  #     - VERSION
+  #   branches:
+  #     - main
 
 jobs:
   docker:
