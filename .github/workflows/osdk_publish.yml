@@ -1,15 +1,17 @@
 name: OSDK Publish
 
 on:
-  pull_request:
-    paths:
-      - VERSION
-      - osdk/Cargo.toml
-  push:
-    branches:
-      - main
-    paths: 
-      - VERSION
+  workflow_call:
+  workflow_dispatch:
+  # pull_request:
+  #   paths:
+  #     - VERSION
+  #     - osdk/Cargo.toml
+  # push:
+  #   branches:
+  #     - main
+  #   paths: 
+  #     - VERSION
 
 jobs:
   osdk-publish:
