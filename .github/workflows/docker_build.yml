@@ -3,11 +3,11 @@ name: Docker image build
 on:
   workflow_dispatch:
   workflow_call:
-  # push:
-  #   paths:
-  #     - VERSION
-  #   branches:
-  #     - main
+    inputs:
+      push:
+        description: 'Whether to push image to docker hub'
+        required: true
+        type: 'boolean'
 
 jobs:
   docker:
@@ -43,7 +43,7 @@ jobs:
           context: .
           file: ./tools/docker/Dockerfile
           platforms: linux/amd64
-          push: true
+          push: ${{ inputs.push }}
           tags: asterinas/asterinas:${{ steps.fetch-versions.outputs.aster_version }}
           build-args: |
             "ASTER_RUST_VERSION=${{ steps.fetch-versions.outputs.rust_version }}"
@@ -59,7 +59,7 @@ jobs:
           context: .
           file: ./tools/docker/Dockerfile
           platforms: linux/amd64
-          push: true
+          push: ${{ inputs.push }}
           tags: asterinas/asterinas:${{ steps.fetch-versions.outputs.aster_version }}-tdx
           build-args: |
             "ASTER_RUST_VERSION=${{ steps.fetch-versions.outputs.rust_version }}"
@@ -74,7 +74,7 @@ jobs:
           context: .
           file: ./osdk/tools/docker/Dockerfile
           platforms: linux/amd64
-          push: true
+          push: ${{ inputs.push }}
           tags: asterinas/osdk:${{ steps.fetch-versions.outputs.aster_version }}
           build-args: |
             "ASTER_RUST_VERSION=${{ steps.fetch-versions.outputs.rust_version }}"
@@ -89,7 +89,7 @@ jobs:
           context: .
           file: ./osdk/tools/docker/Dockerfile
           platforms: linux/amd64
-          push: true
+          push: ${{ inputs.push }}
           tags: asterinas/osdk:${{ steps.fetch-versions.outputs.aster_version }}-tdx
           build-args: |
             "ASTER_RUST_VERSION=${{ steps.fetch-versions.outputs.rust_version }}"
