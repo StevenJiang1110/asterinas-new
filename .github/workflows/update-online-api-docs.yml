@@ -13,7 +13,7 @@ on:
         required: true
         type: boolean
     secrets:
-      API_DOCS_NIGHTLY_PUBLISH_KEY:
+      API_DOCS_PUBLISH_KEY:
         required: false
 
   workflow_dispatch:

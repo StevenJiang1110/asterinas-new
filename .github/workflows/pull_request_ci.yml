@@ -33,12 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - env:
-          vc: ${{ needs.check_changed_files.outputs.version_changed }}
-
-        run: |
-          echo "vc = $vc"
-          echo "VERSION has changed"
+      - run: echo "VERSION has changed"
 
   echo_negative:
     needs: check_changed_files
@@ -46,11 +41,8 @@ jobs:
     if: needs.check_changed_files.outputs.version_changed != 'true'
     steps:
       - uses: actions/checkout@v4
-      - env:
-          vc: ${{ needs.check_changed_files.outputs.version_changed }}
-        run: |
-          echo "vc = $vc"
-          echo "VERSION does not change"
+
+      - run: echo "VERSION does not change"
   
   # Jobs that will be called if version does not changed
 

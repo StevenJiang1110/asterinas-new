@@ -8,6 +8,9 @@ on:
         description: 'Whether to upload doc to online website'
         required: true
         type: 'boolean'
+    secrets:
+      BOOK_PUBLISH_KEY:
+        required: false
   # pull_request:
   #   paths:
   #     - docs/**
