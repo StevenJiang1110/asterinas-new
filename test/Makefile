@@ -27,6 +27,7 @@ INITRAMFS_ALL_DIRS := \
 	$(INITRAMFS)/lib64 \
 	$(INITRAMFS)/bin \
 	$(INITRAMFS)/usr/bin \
+	$(INITRAMFS)/usr/lib \
 	$(INITRAMFS)/test \
 	$(INITRAMFS)/benchmark \
 	$(INITRAMFS_EMPTY_DIRS)
@@ -60,6 +61,10 @@ $(INITRAMFS)/lib/x86_64-linux-gnu: | $(VDSO_LIB)
 	@cp -L /lib/x86_64-linux-gnu/libresolv.so.2 $@
 	@# required for VDSO
 	@cp -L $(VDSO_LIB) $@
+	@# required for python3
+	@cp -L /lib/x86_64-linux-gnu/libexpat.so.1 $@
+	@cp -L /lib/x86_64-linux-gnu/libreadline.so.8 $@
+	@cp -L /lib/x86_64-linux-gnu/libtinfo.so.6 $@
 
 $(VDSO_LIB): | $(VDSO_DIR)
 	@# TODO: use a custom compiled vdso.so file in the future.
@@ -76,6 +81,7 @@ $(INITRAMFS)/etc:
 	@mkdir -p $@
 	@cp $(CUR_DIR)/etc/passwd $@
 	@cp $(CUR_DIR)/etc/group $@
+	@cp /etc/inputrc $@
 
 # Install busybox into /bin and /usr/bin.
 $(INITRAMFS)/bin:
@@ -85,6 +91,11 @@ $(INITRAMFS)/bin:
 $(INITRAMFS)/usr/bin: | $(INITRAMFS)/bin
 	@mkdir -p $@
 	@cp /usr/bin/busybox $@
+	@cp -L /usr/bin/python3 $@
+
+$(INITRAMFS)/usr/lib:
+	@mkdir -p $@
+	@cp -rL /usr/lib/python3.10 $@
 
 .PHONY: $(INITRAMFS)/test
 $(INITRAMFS)/test:
