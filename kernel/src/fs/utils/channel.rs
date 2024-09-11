@@ -146,7 +146,7 @@ impl Producer<u8> {
             return_errno_with_message!(Errno::EPIPE, "the channel is shut down");
         }
 
-        let written_len = self.0.write(reader);
+        let written_len = self.0.write(reader)?;
         self.update_pollee();
 
         if written_len > 0 {
@@ -237,7 +237,7 @@ impl Consumer<u8> {
         // This must be recorded before the actual operation to avoid race conditions.
         let is_shutdown = self.is_shutdown() || self.is_peer_shutdown();
 
-        let read_len = self.0.read(writer);
+        let read_len = self.0.read(writer)?;
         self.update_pollee();
 
         if read_len > 0 {
@@ -304,27 +304,15 @@ impl<T, R: TRights> Fifo<T, R> {
 
 impl<R: TRights> Fifo<u8, R> {
     #[require(R > Read)]
-    pub fn read(&self, writer: &mut dyn IoVecWrite) -> usize {
+    pub fn read(&self, writer: &mut dyn IoVecWrite) -> Result<usize> {
         let mut rb = self.common.consumer.rb();
-        match rb.read_fallible(writer) {
-            Ok(len) => len,
-            Err(e) => {
-                error!("memory read failed on the ring buffer, error: {e:?}");
-                0
-            }
-        }
+        rb.read_fallible(writer)
     }
 
     #[require(R > Write)]
-    pub fn write(&self, reader: &mut dyn IoVecRead) -> usize {
+    pub fn write(&self, reader: &mut dyn IoVecRead) -> Result<usize> {
         let mut rb = self.common.producer.rb();
-        match rb.write_fallible(reader) {
-            Ok(len) => len,
-            Err(e) => {
-                error!("memory write failed on the ring buffer, error: {e:?}");
-                0
-            }
-        }
+        rb.write_fallible(reader)
     }
 }
 
