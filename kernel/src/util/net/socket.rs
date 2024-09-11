@@ -4,7 +4,7 @@ use super::read_socket_addr_from_user;
 use crate::{
     net::socket::SocketAddr,
     prelude::*,
-    util::{copy_iovs_from_user, net::write_socket_addr_with_max_len, IoVec},
+    util::{net::write_socket_addr_with_max_len, IoVecReader, IoVecWriter},
 };
 
 /// Standard well-defined IP protocols.
@@ -112,7 +112,11 @@ impl CUserMsgHdr {
         Ok(())
     }
 
-    pub fn copy_iovs_from_user(&self) -> Result<Box<[IoVec]>> {
-        copy_iovs_from_user(self.msg_iov, self.msg_iovlen as usize)
+    pub fn copy_iov_reader_from_user<'a>(&self, ctx: &'a Context) -> Result<IoVecReader<'a>> {
+        IoVecReader::copy_from_user(ctx, self.msg_iov, self.msg_iovlen as usize)
+    }
+
+    pub fn copy_iov_writer_from_user<'a>(&self, ctx: &'a Context) -> Result<IoVecWriter<'a>> {
+        IoVecWriter::copy_from_user(ctx, self.msg_iov, self.msg_iovlen as usize)
     }
 }

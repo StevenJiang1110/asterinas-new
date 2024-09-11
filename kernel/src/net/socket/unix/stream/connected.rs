@@ -6,6 +6,7 @@ use crate::{
     net::socket::{unix::addr::UnixSocketAddrBound, SockShutdownCmd},
     prelude::*,
     process::signal::Poller,
+    util::{IoVecRead, IoVecWrite},
 };
 
 pub(super) struct Connected {
@@ -47,14 +48,12 @@ impl Connected {
         self.peer_addr.as_ref()
     }
 
-    pub(super) fn try_read(&self, buf: &mut [u8]) -> Result<usize> {
-        let mut writer = VmWriter::from(buf).to_fallible();
-        self.reader.try_read(&mut writer)
+    pub(super) fn try_read(&self, writer: &mut dyn IoVecWrite) -> Result<usize> {
+        self.reader.try_read(writer)
     }
 
-    pub(super) fn try_write(&self, buf: &[u8]) -> Result<usize> {
-        let mut reader = VmReader::from(buf).to_fallible();
-        self.writer.try_write(&mut reader)
+    pub(super) fn try_write(&self, reader: &mut dyn IoVecRead) -> Result<usize> {
+        self.writer.try_write(reader)
     }
 
     pub(super) fn shutdown(&self, cmd: SockShutdownCmd) -> Result<()> {
