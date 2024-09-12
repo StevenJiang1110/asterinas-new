@@ -30,6 +30,7 @@
 #![feature(linked_list_retain)]
 #![feature(linked_list_cursors)]
 #![register_tool(component_access_control)]
+#![feature(slice_pattern)]
 
 use core::sync::atomic::Ordering;
 
@@ -69,6 +70,7 @@ pub mod net;
 pub mod prelude;
 mod process;
 mod sched;
+mod smoltcp_test;
 pub mod softirq_id;
 pub mod syscall;
 mod taskless;
@@ -132,6 +134,9 @@ fn init_thread() {
         "[kernel] Spawn init thread, tid = {}",
         current_thread!().tid()
     );
+
+    smoltcp_test::test_smoltcp_bandwidth();
+
     // Work queue should be initialized before interrupt is enabled,
     // in case any irq handler uses work queue as bottom half
     thread::work_queue::init();
