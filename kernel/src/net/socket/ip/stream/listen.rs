@@ -23,7 +23,7 @@ impl ListenStream {
         bound_socket: AnyBoundSocket,
         backlog: usize,
     ) -> core::result::Result<Self, (Error, AnyBoundSocket)> {
-        const SOMAXCONN: usize = 4096;
+        const SOMAXCONN: usize = 1;
         let somaxconn = SOMAXCONN.min(backlog);
 
         let listen_stream = Self {
