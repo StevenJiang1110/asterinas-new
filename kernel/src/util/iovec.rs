@@ -6,7 +6,7 @@ use crate::prelude::*;
 
 /// A kernel space IO vector.
 #[derive(Debug, Clone, Copy)]
-pub struct IoVec {
+struct IoVec {
     base: Vaddr,
     len: usize,
 }
@@ -39,78 +39,9 @@ impl TryFrom<UserIoVec> for IoVec {
 }
 
 impl IoVec {
-    /// Creates a new `IoVec`.
-    pub const fn new(base: Vaddr, len: usize) -> Self {
-        Self { base, len }
-    }
-
-    /// Returns the base address.
-    pub const fn base(&self) -> Vaddr {
-        self.base
-    }
-
-    /// Returns the length.
-    pub const fn len(&self) -> usize {
-        self.len
-    }
-
     /// Returns whether the `IoVec` points to an empty user buffer.
-    pub const fn is_empty(&self) -> bool {
+    const fn is_empty(&self) -> bool {
         self.len == 0 || self.base == 0
-    }
-
-    /// Reads bytes from the user space buffer pointed by
-    /// the `IoVec` to `dst`.
-    ///
-    /// If successful, the read length will be equal to `dst.len()`.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if
-    /// 1.`dst.len()` is not the same as `self.len()`;
-    /// 2. `self.is_empty()` is `true`.
-    pub fn read_exact_from_user(&self, dst: &mut [u8]) -> Result<()> {
-        assert_eq!(dst.len(), self.len);
-        assert!(!self.is_empty());
-
-        CurrentUserSpace::get().read_bytes(self.base, &mut VmWriter::from(dst))
-    }
-
-    /// Writes bytes from the `src` buffer
-    /// to the user space buffer pointed by the `IoVec`.
-    ///
-    /// If successful, the written length will be equal to `src.len()`.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if
-    /// 1. `src.len()` is not the same as `self.len()`;
-    /// 2. `self.is_empty()` is `true`.
-    pub fn write_exact_to_user(&self, src: &[u8]) -> Result<()> {
-        assert_eq!(src.len(), self.len);
-        assert!(!self.is_empty());
-
-        CurrentUserSpace::get().write_bytes(self.base, &mut VmReader::from(src))
-    }
-
-    /// Reads bytes to the `dst` buffer
-    /// from the user space buffer pointed by the `IoVec`.
-    ///
-    /// If successful, returns the length of actually read bytes.
-    pub fn read_from_user(&self, dst: &mut [u8]) -> Result<usize> {
-        let len = self.len.min(dst.len());
-        CurrentUserSpace::get().read_bytes(self.base, &mut VmWriter::from(&mut dst[..len]))?;
-        Ok(len)
-    }
-
-    /// Writes bytes from the `src` buffer
-    /// to the user space buffer pointed by the `IoVec`.
-    ///
-    /// If successful, returns the length of actually written bytes.
-    pub fn write_to_user(&self, src: &[u8]) -> Result<usize> {
-        let len = self.len.min(src.len());
-        CurrentUserSpace::get().write_bytes(self.base, &mut VmReader::from(&src[..len]))?;
-        Ok(len)
     }
 
     fn reader<'a>(&self, vm_space: &'a VmSpace) -> Result<VmReader<'a>> {
@@ -120,21 +51,6 @@ impl IoVec {
     fn writer<'a>(&self, vm_space: &'a VmSpace) -> Result<VmWriter<'a>> {
         Ok(vm_space.writer(self.base, self.len)?)
     }
-}
-
-/// Copies IO vectors from user space.
-pub fn copy_iovs_from_user(start_addr: Vaddr, count: usize) -> Result<Box<[IoVec]>> {
-    let mut io_vecs = Vec::with_capacity(count);
-
-    let user_space = CurrentUserSpace::get();
-    for idx in 0..count {
-        let addr = start_addr + idx * core::mem::size_of::<UserIoVec>();
-        let uiov = user_space.read_val::<UserIoVec>(addr)?;
-        let iov = IoVec::try_from(uiov)?;
-        io_vecs.push(iov);
-    }
-
-    Ok(io_vecs.into_boxed_slice())
 }
 
 /// The util function for create [`VmReader`]/[`VmWriter`]s.
@@ -183,6 +99,10 @@ impl<'a> IoVecReader<'a> {
         let readers = copy_iovs_and_convert(ctx, start_addr, count, IoVec::reader)?;
         Ok(Self(readers))
     }
+
+    pub fn readers_mut(&'a mut self) -> &'a mut [VmReader<'a>] {
+        &mut self.0
+    }
 }
 
 impl<'a> IoVecWriter<'a> {
@@ -192,13 +112,7 @@ impl<'a> IoVecWriter<'a> {
         Ok(Self(writers))
     }
 
-    /// Returns all writers
-    pub fn writers(&self) -> &[VmWriter] {
-        &self.0
-    }
-
-    /// Returns all mutable writers
-    pub fn writers_mut(&'a mut self) -> &mut [VmWriter] {
+    pub fn writers_mut(&'a mut self) -> &'a mut [VmWriter<'a>] {
         &mut self.0
     }
 }
