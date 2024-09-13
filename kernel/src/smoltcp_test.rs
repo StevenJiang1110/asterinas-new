@@ -1,44 +1,39 @@
-use core::slice::SlicePattern;
+use log::debug;
 
-use ostd::{arch::qemu::{exit_qemu, QemuExitCode}, sync::LocalIrqDisabled};
-use smoltcp::{
-    iface::{Config, Interface, SocketSet},
-    phy::{Device, Loopback, Medium},
-    socket::tcp,
-    time::Instant,
-    wire::{EthernetAddress, IpAddress, IpCidr},
-};
+use ostd::arch::qemu::{exit_qemu, QemuExitCode};
+use smoltcp::iface::{Config, Interface, SocketSet};
+use smoltcp::phy::{Device, Loopback, Medium};
+use smoltcp::socket::tcp;
+use smoltcp::time::Instant;
+use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
-use crate::{prelude::*, time::clocks::MonotonicClock, Clock};
+use crate::time::clocks::MonotonicClock;
 
-const MSG_SIZE: usize = 4096;
-const BUF_SIZE: usize = 65536;
+use crate::prelude::*;
 
 pub fn test_smoltcp_bandwidth() {
-    let device = Mutex::new(Loopback::new(Medium::Ethernet));
+    let mut device = Loopback::new(Medium::Ethernet);
 
-    let config = match device.lock().capabilities().medium {
+    // Create interface
+    let config = match device.capabilities().medium {
         Medium::Ethernet => {
             Config::new(EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]).into())
         }
-        Medium::Ip => Config::new(smoltcp::wire::HardwareAddress::Ip),
+        Medium::Ip => Config::new(smoltcp::wire::HardwareAddress::Ip),     
     };
 
     let clock = MonotonicClock::get();
-    let iface: SpinLock<Interface, LocalIrqDisabled> = {
-        let mut iface = Interface::new(config, &mut *device.lock(), instant_now(clock));
-        iface.update_ip_addrs(|ip_addrs| {
-            ip_addrs
-                .push(IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8))
-                .unwrap();
-        });
-        SpinLock::new(iface)
-    };
+    let mut iface = Interface::new(config, &mut device, instant_now(clock));
+    iface.update_ip_addrs(|ip_addrs| {
+        ip_addrs
+            .push(IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8))
+            .unwrap();
+    });
 
     // Create sockets
     let server_socket = {
-        let tcp_rx_buffer = tcp::SocketBuffer::new(vec![0; BUF_SIZE]);
-        let tcp_tx_buffer = tcp::SocketBuffer::new(vec![0; BUF_SIZE]);
+        let tcp_rx_buffer = tcp::SocketBuffer::new(vec![0; 65536]);
+        let tcp_tx_buffer = tcp::SocketBuffer::new(vec![0; 65536]);
         tcp::Socket::new(tcp_rx_buffer, tcp_tx_buffer)
     };
 
@@ -48,99 +43,47 @@ pub fn test_smoltcp_bandwidth() {
         tcp::Socket::new(tcp_rx_buffer, tcp_tx_buffer)
     };
 
-    let (sockets, server_handle, client_handle) = {
-        let mut sockets = SocketSet::new(Vec::new());
-        let server_handle = sockets.add(server_socket);
-        let client_handle = sockets.add(client_socket);
-        (SpinLock::<_, LocalIrqDisabled>::new(sockets), server_handle, client_handle)
-    };
+    let mut sockets: [_; 2] = Default::default();
+    let mut sockets = SocketSet::new(&mut sockets[..]);
+    let server_handle = sockets.add(server_socket);
+    let client_handle = sockets.add(client_socket);
 
     let start_time = clock.read_time();
 
-    let mut recv_buffer = vec![123; BUF_SIZE];
-    let send_buffer = vec![124; BUF_SIZE];
     let mut did_listen = false;
     let mut did_connect = false;
     let mut processed = 0;
-    while processed < 64 * 1024 * 1024 * 1024 {
-        poll(clock, &device, &sockets, &iface);
+    while processed < 1024 * 1024 * 1024 {
+        iface.poll(instant_now(clock), &mut device, &mut sockets);
 
-        // Receive
-        loop {
-            let mut sockets_guard = sockets.lock();
-            let socket = sockets_guard.get_mut::<tcp::Socket>(server_handle);
-            if !socket.is_active() && !socket.is_listening() && !did_listen {
-                debug!("listening");
-                socket.listen(1234).unwrap();
-                did_listen = true;
-            }
+        let socket = sockets.get_mut::<tcp::Socket>(server_handle);
+        if !socket.is_active() && !socket.is_listening() && !did_listen {
+            debug!("listening");
+            socket.listen(1234).unwrap();
+            did_listen = true;
+        }
 
-            if !socket.can_recv() {
-                break;
-            }
-
-            let received = socket
-                .recv(|buffer| {
-                    let mut writer = VmWriter::from(&mut recv_buffer[..buffer.len()]).to_fallible();
-                    let received = writer
-                        .write_fallible(&mut VmReader::from(buffer.as_slice()))
-                        .unwrap();
-
-                    (received, received)
-                })
-                .unwrap();
-            debug!("got {:?}", received);
+        while socket.can_recv() {
+            let received = socket.recv(|buffer| (buffer.len(), buffer.len())).unwrap();
+            debug!("got {:?}", received,);
             processed += received;
-
-            drop(sockets_guard);
-
-            poll(clock, &device, &sockets, &iface);
         }
 
-        // Send
-        loop {
-            let mut iface_guard = iface.lock();
-            let mut sockets_guard = sockets.lock();
-            let socket = sockets_guard.get_mut::<tcp::Socket>(client_handle);
-            let cx = iface_guard.context();
-            if !socket.is_open() && !did_connect {
-                // debug!("connecting");
-                socket
-                    .connect(cx, (IpAddress::v4(127, 0, 0, 1), 1234), 65000)
-                    .unwrap();
-                did_connect = true;
-
-                drop(sockets_guard);
-                drop(iface_guard);
-
-                poll(clock, &device, &sockets, &iface);
-                break;
-            }
-
-            if !socket.can_send() {
-                drop(sockets_guard);
-                drop(iface_guard);
-                poll(clock, &device, &sockets, &iface);
-                break;
-            }
-
-            debug!("sending");
+        let socket = sockets.get_mut::<tcp::Socket>(client_handle);
+        let cx = iface.context();
+        if !socket.is_open() && !did_connect {
+            debug!("connecting");
             socket
-                .send(|buffer| {
-                    let len = buffer.len();
-                    let mut reader = VmReader::from(&send_buffer[..len]);
-                    let mut writer = VmWriter::from(buffer).to_fallible();
-                    let sent = writer.write_fallible(&mut reader).unwrap();
-                    (sent, ())
-                })
+                .connect(cx, (IpAddress::v4(127, 0, 0, 1), 1234), 65000)
                 .unwrap();
-
-            drop(sockets_guard);
-            drop(iface_guard);
-
-            poll(clock, &device, &sockets, &iface);
+            did_connect = true;
         }
-    } 
+
+        while socket.can_send() {
+            debug!("sending");
+            socket.send(|buffer| (buffer.len(), ())).unwrap();
+        }
+    }
 
     let duration = clock.read_time() - start_time;
     println!(
@@ -154,11 +97,4 @@ pub fn test_smoltcp_bandwidth() {
 
 fn instant_now(clock: &Arc<MonotonicClock>) -> Instant {
     Instant::from_micros(clock.read_time().as_micros() as i64)
-}
-
-fn poll(clock: &Arc<MonotonicClock>, device: &Mutex<Loopback>, sockets: &SpinLock<SocketSet, LocalIrqDisabled>, iface: &SpinLock<Interface, LocalIrqDisabled>) {
-    let mut device = device.lock();
-    let mut iface = iface.lock();
-    let mut sockets = sockets.lock();
-    iface.poll(instant_now(clock), &mut *device, &mut sockets);
 }
