@@ -5,7 +5,7 @@ use core::{cell::Cell, time::Duration};
 use super::SyscallReturn;
 use crate::{
     events::IoEvents,
-    fs::{file_handle::FileLike, file_table::FileDesc},
+    fs::{file_handle::FileLike, file_table::{FileDesc, FileTableEntry}},
     prelude::*,
     process::signal::Poller,
 };
@@ -60,7 +60,9 @@ pub fn do_poll(poll_fds: &[PollFd], timeout: Option<Duration>, ctx: &Context) ->
     match result {
         FileResult::AllValid => (),
         FileResult::SomeInvalid => {
-            return Ok(count_all_events(poll_fds, &files));
+            let res = count_all_events(poll_fds, &files);
+            add_files_back(ctx, poll_fds, files);
+            return Ok(res);
         }
     }
 
@@ -69,6 +71,7 @@ pub fn do_poll(poll_fds: &[PollFd], timeout: Option<Duration>, ctx: &Context) ->
         PollerResult::EventFoundAt(index) => {
             let next = index + 1;
             let remaining_events = count_all_events(&poll_fds[next..], &files[next..]);
+            add_files_back(ctx, poll_fds, files);
             return Ok(1 + remaining_events);
         }
     };
@@ -90,6 +93,7 @@ pub fn do_poll(poll_fds: &[PollFd], timeout: Option<Duration>, ctx: &Context) ->
 
         let num_events = count_all_events(poll_fds, &files);
         if num_events > 0 {
+            add_files_back(ctx, poll_fds, files);
             return Ok(num_events);
         }
     }
@@ -101,8 +105,10 @@ enum FileResult {
 }
 
 /// Holds all the files we're going to poll.
-fn hold_files(poll_fds: &[PollFd], ctx: &Context) -> (FileResult, Vec<Option<Arc<dyn FileLike>>>) {
-    let file_table = ctx.process.file_table().lock();
+fn hold_files(poll_fds: &[PollFd], ctx: &Context) -> (FileResult, Vec<Option<FileTableEntry>>) {
+    let is_file_table_exclusive = Arc::strong_count(ctx.process.file_table()) == 1 && ctx.process.tasks().lock().len() == 1;
+
+    let mut file_table = ctx.process.file_table().lock();
 
     let mut files = Vec::with_capacity(poll_fds.len());
     let mut result = FileResult::AllValid;
@@ -113,18 +119,47 @@ fn hold_files(poll_fds: &[PollFd], ctx: &Context) -> (FileResult, Vec<Option<Arc
             continue;
         };
 
-        let Ok(file) = file_table.get_file(fd) else {
-            poll_fd.revents.set(IoEvents::NVAL);
-            result = FileResult::SomeInvalid;
+        if is_file_table_exclusive {
+            let file_table_entry = file_table.remove_file(fd);
 
-            files.push(None);
-            continue;
-        };
+            if file_table_entry.is_none() {
+                poll_fd.revents.set(IoEvents::NVAL);
+                result = FileResult::SomeInvalid;
+    
+                files.push(file_table_entry);
+                continue;
+            }
 
-        files.push(Some(file.clone()));
+            files.push(file_table_entry);
+        } else {
+            todo!()
+        }
+
+        
+
+        // let Ok(file) = file_table.get_file(fd) else {
+        //     poll_fd.revents.set(IoEvents::NVAL);
+        //     result = FileResult::SomeInvalid;
+
+        //     files.push(None);
+        //     continue;
+        // };
+
+        // files.push(Some(file.clone()));
     }
 
     (result, files)
+}
+
+fn add_files_back(ctx: &Context, poll_fds: &[PollFd], files: Vec<Option<FileTableEntry>>) {
+    let mut file_table = ctx.process.file_table().lock();
+    for (poll_fd, entry) in poll_fds.iter().zip(files.into_iter()) {
+        let Some(entry) = entry else {
+            continue;
+        };
+
+        file_table.insert_entry_at(poll_fd.fd().unwrap(), entry);
+    }
 }
 
 enum PollerResult {
@@ -133,7 +168,7 @@ enum PollerResult {
 }
 
 /// Registers the files with a poller, or exits early if some events are detected.
-fn register_poller(poll_fds: &[PollFd], files: &[Option<Arc<dyn FileLike>>]) -> PollerResult {
+fn register_poller(poll_fds: &[PollFd], files: &[Option<FileTableEntry>]) -> PollerResult {
     let mut poller = Poller::new();
 
     for (i, (poll_fd, file)) in poll_fds.iter().zip(files.iter()).enumerate() {
@@ -141,7 +176,7 @@ fn register_poller(poll_fds: &[PollFd], files: &[Option<Arc<dyn FileLike>>]) -> 
             continue;
         };
 
-        let events = file.poll(poll_fd.events(), Some(&mut poller));
+        let events = file.file().poll(poll_fd.events(), Some(&mut poller));
         if events.is_empty() {
             continue;
         }
@@ -154,7 +189,7 @@ fn register_poller(poll_fds: &[PollFd], files: &[Option<Arc<dyn FileLike>>]) -> 
 }
 
 /// Counts the number of the ready files.
-fn count_all_events(poll_fds: &[PollFd], files: &[Option<Arc<dyn FileLike>>]) -> usize {
+fn count_all_events(poll_fds: &[PollFd], files: &[Option<FileTableEntry>]) -> usize {
     let mut counter = 0;
 
     for (poll_fd, file) in poll_fds.iter().zip(files.iter()) {
@@ -166,7 +201,7 @@ fn count_all_events(poll_fds: &[PollFd], files: &[Option<Arc<dyn FileLike>>]) ->
             continue;
         };
 
-        let events = file.poll(poll_fd.events(), None);
+        let events = file.file().poll(poll_fd.events(), None);
         if events.is_empty() {
             continue;
         }

@@ -123,6 +123,10 @@ impl FileTable {
         entry.map(|e| e.file)
     }
 
+    pub fn insert_entry_at(&mut self, fd: FileDesc, entry: FileTableEntry) {
+        assert!(self.table.put_at(fd as usize, entry).is_none());
+    }
+
     pub fn close_file(&mut self, fd: FileDesc) -> Option<Arc<dyn FileLike>> {
         let removed_entry = self.table.remove(fd as usize)?;
 
@@ -136,6 +140,10 @@ impl FileTable {
             closed_inode_file.release_range_locks();
         }
         Some(closed_file)
+    }
+
+    pub fn remove_file(&mut self, fd: FileDesc) -> Option<FileTableEntry> {
+        self.table.remove(fd as usize)
     }
 
     pub fn close_all(&mut self) -> Vec<Arc<dyn FileLike>> {
