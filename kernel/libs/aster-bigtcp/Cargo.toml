@@ -8,7 +8,8 @@ edition = "2021"
 [dependencies]
 keyable-arc = { path = "../keyable-arc" }
 ostd = { path = "../../../ostd" }
-smoltcp = { git = "https://github.com/asterinas/smoltcp", rev = "37716bf", default-features = false, features = [
+# smoltcp = { git = "https://github.com/asterinas/smoltcp", rev = "37716bf", default-features = false, features = [
+smoltcp = { git = "https://github.com/StevenJiang1110/smoltcp.git", branch = "rebase-newest", default-features = false, features = [
     "alloc",
     "log",
     "medium-ethernet",
