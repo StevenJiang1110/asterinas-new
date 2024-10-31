@@ -78,7 +78,7 @@ impl FileTable {
         let file = self
             .table
             .get(fd as usize)
-            .map(|entry| entry.file.clone())
+            .map(|entry| entry.file.as_ref().unwrap().clone())
             .ok_or(Error::with_message(Errno::ENOENT, "No such file"))?;
 
         // Get the lowest-numbered available fd equal to or greater than `new_fd`.
@@ -120,11 +120,13 @@ impl FileTable {
             self.notify_fd_events(&events);
             entry.as_ref().unwrap().notify_fd_events(&events);
         }
-        entry.map(|e| e.file)
+        entry.map(|e| e.file.unwrap())
     }
 
-    pub fn insert_entry_at(&mut self, fd: FileDesc, entry: FileTableEntry) {
-        assert!(self.table.put_at(fd as usize, entry).is_none());
+    pub fn insert_file_at(&mut self, fd: FileDesc, file: Arc<dyn FileLike>) {
+        let entry = self.table.get_mut(fd as usize).unwrap();
+        debug_assert!(entry.file.is_none());
+        let _ = entry.file.insert(file);
     }
 
     pub fn close_file(&mut self, fd: FileDesc) -> Option<Arc<dyn FileLike>> {
@@ -134,7 +136,7 @@ impl FileTable {
         self.notify_fd_events(&events);
         removed_entry.notify_fd_events(&events);
 
-        let closed_file = removed_entry.file;
+        let closed_file = removed_entry.file.unwrap();
         if let Some(closed_inode_file) = closed_file.downcast_ref::<InodeHandle>() {
             // FIXME: Operation below should not hold any mutex if `self` is protected by a spinlock externally
             closed_inode_file.release_range_locks();
@@ -142,8 +144,8 @@ impl FileTable {
         Some(closed_file)
     }
 
-    pub fn remove_file(&mut self, fd: FileDesc) -> Option<FileTableEntry> {
-        self.table.remove(fd as usize)
+    pub fn remove_file(&mut self, fd: FileDesc) -> Option<Arc<dyn FileLike>> {
+        self.table.get_mut(fd as usize)?.file.take()
     }
 
     pub fn close_all(&mut self) -> Vec<Arc<dyn FileLike>> {
@@ -176,8 +178,8 @@ impl FileTable {
             let events = FdEvents::Close(fd);
             self.notify_fd_events(&events);
             removed_entry.notify_fd_events(&events);
-            closed_files.push(removed_entry.file.clone());
-            if let Some(inode_file) = removed_entry.file.downcast_ref::<InodeHandle>() {
+            closed_files.push(removed_entry.file.as_ref().unwrap().clone());
+            if let Some(inode_file) = removed_entry.file.unwrap().downcast_ref::<InodeHandle>() {
                 // FIXME: Operation below should not hold any mutex if `self` is protected by a spinlock externally
                 inode_file.release_range_locks();
             }
@@ -189,7 +191,7 @@ impl FileTable {
     pub fn get_file(&self, fd: FileDesc) -> Result<&Arc<dyn FileLike>> {
         self.table
             .get(fd as usize)
-            .map(|entry| &entry.file)
+            .map(|entry| entry.file.as_ref().unwrap())
             .ok_or(Error::with_message(Errno::EBADF, "fd not exits"))
     }
 
@@ -215,7 +217,7 @@ impl FileTable {
     pub fn fds_and_files(&self) -> impl Iterator<Item = (FileDesc, &'_ Arc<dyn FileLike>)> {
         self.table
             .idxes_and_items()
-            .map(|(idx, entry)| (idx as FileDesc, &entry.file))
+            .map(|(idx, entry)| (idx as FileDesc, entry.file.as_ref().unwrap()))
     }
 
     pub fn register_observer(&self, observer: Weak<dyn Observer<FdEvents>>) {
@@ -262,7 +264,7 @@ pub enum FdEvents {
 impl Events for FdEvents {}
 
 pub struct FileTableEntry {
-    file: Arc<dyn FileLike>,
+    file: Option<Arc<dyn FileLike>>,
     flags: AtomicU8,
     subject: Subject<FdEvents>,
     owner: Option<Owner>,
@@ -271,7 +273,7 @@ pub struct FileTableEntry {
 impl FileTableEntry {
     pub fn new(file: Arc<dyn FileLike>, flags: FdFlags) -> Self {
         Self {
-            file,
+            file: Some(file),
             flags: AtomicU8::new(flags.bits()),
             subject: Subject::new(),
             owner: None,
@@ -279,7 +281,7 @@ impl FileTableEntry {
     }
 
     pub fn file(&self) -> &Arc<dyn FileLike> {
-        &self.file
+        self.file.as_ref().unwrap()
     }
 
     pub fn owner(&self) -> Option<Pid> {
@@ -296,7 +298,11 @@ impl FileTableEntry {
             None => {
                 // Unset the owner if the given pid is zero
                 if let Some((_, observer)) = self.owner.as_ref() {
-                    let _ = self.file.unregister_observer(&Arc::downgrade(observer));
+                    let _ = self
+                        .file
+                        .as_ref()
+                        .unwrap()
+                        .unregister_observer(&Arc::downgrade(observer));
                 }
                 let _ = self.owner.take();
             }
@@ -307,11 +313,20 @@ impl FileTableEntry {
                         return Ok(());
                     }
 
-                    let _ = self.file.unregister_observer(&Arc::downgrade(observer));
+                    let _ = self
+                        .file
+                        .as_ref()
+                        .unwrap()
+                        .unregister_observer(&Arc::downgrade(observer));
                 }
 
-                let observer = OwnerObserver::new(self.file.clone(), Arc::downgrade(owner_process));
+                let observer = OwnerObserver::new(
+                    self.file.as_ref().unwrap().clone(),
+                    Arc::downgrade(owner_process),
+                );
                 self.file
+                    .as_ref()
+                    .unwrap()
                     .register_observer(observer.weak_self(), IoEvents::empty())?;
                 let _ = self.owner.insert((owner_pid, observer));
             }
