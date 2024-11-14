@@ -32,13 +32,13 @@ bitflags! {
         const VIRTIO_NET_F_GUEST_ANNOUNCE = 1 << 21;    // Driver can send gratuitous packets.
         const VIRTIO_NET_F_MQ = 1 << 22;                // Device supports multiqueue with automatic receive steering.
         const VIRTIO_NET_F_CTRL_MAC_ADDR = 1 << 23;     // Set MAC address through control channel.
-        // const VIRTIO_NET_F_HOST_USO = 1 << 56;          // Device can receive USO packets.
-        // const VIRTIO_NET_F_HASH_REPORT = 1 << 57;       // Device can report per-packet hash value and a type of calculated hash.
-        // const VIRTIO_NET_F_GUEST_HDRLEN = 1 << 59;      // Driver can provide the exact hdr_len value. Device benefits from knowing the exact header length.
-        // const VIRTIO_NET_F_RSS = 1 << 60;               // Device supports RSS (receive-side scaling) with Toeplitz hash calculation and configurable hash parameters for receive steering.
-        // const VIRTIO_NET_F_RSC_EXT = 1 << 61;           // DevicecanprocessduplicatedACKsandreportnumberofcoalescedseg- ments and duplicated ACKs.
-        // const VIRTIO_NET_F_STANDBY = 1 << 62;           // Device may act as a standby for a primary device with the same MAC address.
-        // const VIRTIO_NET_F_SPEED_DUPLEX = 1 << 63;      // Device reports speed and duplex.
+        const VIRTIO_NET_F_HOST_USO = 1 << 56;          // Device can receive USO packets.
+        const VIRTIO_NET_F_HASH_REPORT = 1 << 57;       // Device can report per-packet hash value and a type of calculated hash.
+        const VIRTIO_NET_F_GUEST_HDRLEN = 1 << 59;      // Driver can provide the exact hdr_len value. Device benefits from knowing the exact header length.
+        const VIRTIO_NET_F_RSS = 1 << 60;               // Device supports RSS (receive-side scaling) with Toeplitz hash calculation and configurable hash parameters for receive steering.
+        const VIRTIO_NET_F_RSC_EXT = 1 << 61;           // DevicecanprocessduplicatedACKsandreportnumberofcoalescedseg- ments and duplicated ACKs.
+        const VIRTIO_NET_F_STANDBY = 1 << 62;           // Device may act as a standby for a primary device with the same MAC address.
+        const VIRTIO_NET_F_SPEED_DUPLEX = 1 << 63;      // Device reports speed and duplex.
     }
 }
 
