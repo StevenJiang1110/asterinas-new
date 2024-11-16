@@ -44,6 +44,7 @@ prepare_system() {
     
     # System-specific preparation
     if [ "$SYSTEM" = "linux" ]; then
+        echo "prepare linux"
         # Mount necessary fs
         mount -t devtmpfs devtmpfs /dev
         # Enable network

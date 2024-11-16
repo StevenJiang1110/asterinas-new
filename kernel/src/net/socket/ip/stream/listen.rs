@@ -3,7 +3,7 @@
 use aster_bigtcp::{
     errors::tcp::ListenError, iface::BindPortConfig, socket::UnboundTcpSocket, wire::IpEndpoint,
 };
-use ostd::sync::WriteIrqDisabled;
+use ostd::{early_println, sync::WriteIrqDisabled};
 
 use super::connected::ConnectedStream;
 use crate::{
@@ -33,9 +33,10 @@ impl ListenStream {
             bound_socket,
             backlog_sockets: RwLock::new(Vec::new()),
         };
-        if let Err(err) = listen_stream.fill_backlog_sockets() {
-            return Err((err, listen_stream.bound_socket));
-        }
+        listen_stream.fill_backlog_sockets().unwrap();
+        // if let Err(err) = listen_stream.fill_backlog_sockets() {
+        //     return Err((err, listen_stream.bound_socket));
+        // }
         Ok(listen_stream)
     }
 
@@ -159,5 +160,14 @@ impl BacklogSocket {
 
     fn into_bound_socket(self) -> BoundTcpSocket {
         self.bound_socket
+    }
+}
+
+impl Drop for ListenStream {
+    fn drop(&mut self) {
+        early_println!(
+            "listen stream is dropped: {:?}",
+            self.bound_socket.local_endpoint().unwrap()
+        );
     }
 }

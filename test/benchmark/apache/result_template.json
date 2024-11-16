@@ -1,0 +1,14 @@
+[
+    {
+        "name": "Average Apache performance on Linux",
+        "unit": "Requests/sec",
+        "value": 0,
+        "extra": "linux_result"
+    },
+    {
+        "name": "Average Apache performance on Asterinas",
+        "unit": "Requests/sec",
+        "value": 0,
+        "extra": "aster_result"
+    }
+]
