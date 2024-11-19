@@ -132,30 +132,30 @@ pub(crate) unsafe fn init_on_ap() {
 pub(crate) fn interrupts_ack(irq_number: usize) {
     if !cpu::CpuException::is_cpu_exception(irq_number as u16) {
         unsafe {
-            EOI_COUNT += 1;
+            // EOI_COUNT += 1;
     
-            if EOI_COUNT % 10000 == 0 {
-                early_println!("eoi count = {}", EOI_COUNT);
-                early_println!("fast path = {}, slow path = {}", FAST_PATH, SLOW_PATH);
-                early_println!("{:?}\n", EOI_STATISTICS);
-            }
+            // if EOI_COUNT % 10000 == 0 {
+            //     early_println!("eoi count = {}", EOI_COUNT);
+            //     early_println!("fast path = {}, slow path = {}", FAST_PATH, SLOW_PATH);
+            //     early_println!("{:?}\n", EOI_STATISTICS);
+            // }
             if kvm_guest::kvm_guest_apic_eoi_write() {
-                if let Some((fast_count, _)) = EOI_STATISTICS.get_mut(&irq_number) {
-                    *fast_count += 1;
-                } else {
-                    EOI_STATISTICS.insert(irq_number, (1, 0));
-                }
+                // if let Some((fast_count, _)) = EOI_STATISTICS.get_mut(&irq_number) {
+                //     *fast_count += 1;
+                // } else {
+                //     EOI_STATISTICS.insert(irq_number, (1, 0));
+                // }
 
-                FAST_PATH += 1;
+                // FAST_PATH += 1;
                 return;
             } 
 
-            if let Some((_, slow_count)) = EOI_STATISTICS.get_mut(&irq_number) {
-                *slow_count += 1;
-            } else {
-                EOI_STATISTICS.insert(irq_number, (1, 0));
-            }
-            SLOW_PATH += 1;
+            // if let Some((_, slow_count)) = EOI_STATISTICS.get_mut(&irq_number) {
+            //     *slow_count += 1;
+            // } else {
+            //     EOI_STATISTICS.insert(irq_number, (1, 0));
+            // }
+            // SLOW_PATH += 1;
         }
 
         // unsafe {
@@ -179,11 +179,11 @@ pub(crate) fn interrupts_ack(irq_number: usize) {
     }
 }
 
-static mut EOI_COUNT: usize = 0;
-static mut FAST_PATH: usize = 0;
-static mut SLOW_PATH: usize = 0;
-static mut EOI_STATISTICS: BTreeMap<usize, (usize, usize)> = BTreeMap::new();
-static mut EOI_WITHOUT_PV_STATISTICS: BTreeMap<usize, usize> = BTreeMap::new();
+// static mut EOI_COUNT: usize = 0;
+// static mut FAST_PATH: usize = 0;
+// static mut SLOW_PATH: usize = 0;
+// static mut EOI_STATISTICS: BTreeMap<usize, (usize, usize)> = BTreeMap::new();
+// static mut EOI_WITHOUT_PV_STATISTICS: BTreeMap<usize, usize> = BTreeMap::new();
 
 /// Returns the frequency of TSC. The unit is Hz.
 pub fn tsc_freq() -> u64 {
