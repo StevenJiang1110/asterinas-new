@@ -43,7 +43,7 @@ pub struct BoundSocketInner<T, E> {
     iface: Arc<dyn Iface<E>>,
     port: u16,
     socket: T,
-    observer: RwLock<Weak<dyn SocketEventObserver>>,
+    observer: RwLock<Weak<dyn SocketEventObserver>, LocalIrqDisabled>,
     next_poll_at_ms: AtomicU64,
     has_new_events: AtomicBool,
 }
@@ -202,7 +202,7 @@ impl<T: AnySocket, E> BoundSocket<T, E> {
     /// that the old observer will never be called after the setting. Users should be aware of this
     /// and proactively handle the race conditions if necessary.
     pub fn set_observer(&self, new_observer: Weak<dyn SocketEventObserver>) {
-        *self.0.observer.write_irq_disabled() = new_observer;
+        *self.0.observer.write() = new_observer;
 
         self.0.on_iface_events();
     }
