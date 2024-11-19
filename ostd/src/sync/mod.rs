@@ -23,7 +23,8 @@ pub use self::{
         RwMutexReadGuard, RwMutexUpgradeableGuard, RwMutexWriteGuard,
     },
     spin::{
-        ArcSpinLockGuard, GuardTransfer, LocalIrqDisabled, PreemptDisabled, SpinLock, SpinLockGuard,
+        ArcSpinLockGuard, GuardTransfer, Guardian, LocalIrqDisabled, PreemptDisabled, SpinLock,
+        SpinLockGuard,
     },
     wait::{WaitQueue, Waiter, Waker},
 };

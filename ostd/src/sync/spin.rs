@@ -32,7 +32,7 @@ use crate::{
 ///
 /// [`disable_irq`]: Self::disable_irq
 #[repr(transparent)]
-pub struct SpinLock<T: ?Sized, G: Guardian = PreemptDisabled> {
+pub struct SpinLock<T: ?Sized, G = PreemptDisabled> {
     phantom: PhantomData<G>,
     /// Only the last field of a struct may have a dynamically sized type.
     /// That's why SpinLockInner is put in the last field.
@@ -92,7 +92,7 @@ impl Guardian for LocalIrqDisabled {
     }
 }
 
-impl<T, G: Guardian> SpinLock<T, G> {
+impl<T, G> SpinLock<T, G> {
     /// Creates a new spin lock.
     pub const fn new(val: T) -> Self {
         let lock_inner = SpinLockInner {

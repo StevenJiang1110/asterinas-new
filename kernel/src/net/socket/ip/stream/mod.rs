@@ -3,12 +3,13 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use aster_bigtcp::{socket::SocketEventObserver, wire::IpEndpoint};
+use aster_softirq::BottomHalfDisabled;
 use connected::ConnectedStream;
 use connecting::ConnectingStream;
 use init::InitStream;
 use listen::ListenStream;
 use options::{Congestion, MaxSegment, NoDelay, WindowClamp};
-use ostd::sync::{LocalIrqDisabled, PreemptDisabled, RwLockReadGuard, RwLockWriteGuard};
+use ostd::sync::{PreemptDisabled, RwLockReadGuard, RwLockWriteGuard};
 use takeable::Takeable;
 use util::TcpOptionSet;
 
@@ -47,7 +48,7 @@ pub use self::util::CongestionControl;
 
 pub struct StreamSocket {
     options: RwLock<OptionSet>,
-    state: RwLock<Takeable<State>, LocalIrqDisabled>,
+    state: RwLock<Takeable<State>, BottomHalfDisabled>,
     is_nonblocking: AtomicBool,
     pollee: Pollee,
 }
@@ -117,7 +118,7 @@ impl StreamSocket {
     /// Ensures that the socket state is up to date and obtains a read lock on it.
     ///
     /// For a description of what "up-to-date" means, see [`Self::update_connecting`].
-    fn read_updated_state(&self) -> RwLockReadGuard<Takeable<State>, LocalIrqDisabled> {
+    fn read_updated_state(&self) -> RwLockReadGuard<Takeable<State>, BottomHalfDisabled> {
         loop {
             let state = self.state.read();
             match state.as_ref() {
@@ -133,7 +134,7 @@ impl StreamSocket {
     /// Ensures that the socket state is up to date and obtains a write lock on it.
     ///
     /// For a description of what "up-to-date" means, see [`Self::update_connecting`].
-    fn write_updated_state(&self) -> RwLockWriteGuard<Takeable<State>, LocalIrqDisabled> {
+    fn write_updated_state(&self) -> RwLockWriteGuard<Takeable<State>, BottomHalfDisabled> {
         self.update_connecting().1
     }
 
@@ -150,7 +151,7 @@ impl StreamSocket {
         &self,
     ) -> (
         RwLockWriteGuard<OptionSet, PreemptDisabled>,
-        RwLockWriteGuard<Takeable<State>, LocalIrqDisabled>,
+        RwLockWriteGuard<Takeable<State>, BottomHalfDisabled>,
     ) {
         // Hold the lock in advance to avoid race conditions.
         let mut options = self.options.write();
