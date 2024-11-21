@@ -5,35 +5,35 @@
 
 set -e
 
-BENCHMARK_DIR="/benchmark"
-READY_MESSAGE="The VM is ready for the benchmark."
+# BENCHMARK_DIR="/benchmark"
+# READY_MESSAGE="The VM is ready for the benchmark."
 
-BENCH_NAME=$1
-SYSTEM="${2:-asterinas}"
-echo "Running benchmark: ${BENCH_NAME} on ${SYSTEM}"
+# BENCH_NAME=$1
+# SYSTEM="${2:-asterinas}"
+# echo "Running benchmark: ${BENCH_NAME} on ${SYSTEM}"
 
-print_help() {
-    echo "Usage: $0 <benchmark_name> <system_type>"
-    echo "  benchmark_name: The name of the benchmark to run."
-    echo "  system_type: The type of system to run the benchmark on. 'linux' or 'asterinas'."
-}
+# print_help() {
+#     echo "Usage: $0 <benchmark_name> <system_type>"
+#     echo "  benchmark_name: The name of the benchmark to run."
+#     echo "  system_type: The type of system to run the benchmark on. 'linux' or 'asterinas'."
+# }
 
 # Validate arguments
-check_bench_name() {
-    if [ -z "${BENCH_NAME}" ] || [ -z "${SYSTEM}" ]; then
-        echo "Error: Invalid arguments."
-        print_help
-        exit 1
-    fi
+# check_bench_name() {
+#     if [ -z "${BENCH_NAME}" ] || [ -z "${SYSTEM}" ]; then
+#         echo "Error: Invalid arguments."
+#         print_help
+#         exit 1
+#     fi
 
-    local full_path="${BENCHMARK_DIR}/${BENCH_NAME}"
+#     local full_path="${BENCHMARK_DIR}/${BENCH_NAME}"
 
-    if ! [ -d "${full_path}" ]; then
-        echo "Directory '${BENCH_NAME}' does not exist in the benchmark directory."
-        print_help
-        exit 1
-    fi
-}
+#     if ! [ -d "${full_path}" ]; then
+#         echo "Directory '${BENCH_NAME}' does not exist in the benchmark directory."
+#         print_help
+#         exit 1
+#     fi
+# }
 
 prepare_system() {
     if [ ! -d /tmp ]; then
@@ -43,44 +43,47 @@ prepare_system() {
     /sbin/ldconfig
     
     # System-specific preparation
-    if [ "$SYSTEM" = "linux" ]; then
+    # if [ "$SYSTEM" = "linux" ]; then
         # Mount necessary fs
-        mount -t devtmpfs devtmpfs /dev
-        # Enable network
-        ip link set lo up
-        ip link set eth0 up
-        ifconfig eth0 10.0.2.15
-        # Mount ext2
-        mount -t ext2 /dev/vda /ext2
-    elif [ "$SYSTEM" = "asterinas" ]; then
-        # Asterinas-specific preparation (if any)
-        :
-    else
-        echo "Error: Unknown system type. Please set SYSTEM to 'linux' or 'asterinas'."
-        exit 1
-    fi
+        # mount -t devtmpfs devtmpfs /dev
+    # Enable network
+    ip link set lo up
+    ip link set eth0 up
+    ifconfig eth0 10.0.2.15
+    mount -t proc proc /proc
+    # Mount ext2
+        # mount -t ext2 /dev/vda /ext2
+    # elif [ "$SYSTEM" = "asterinas" ]; then
+    #     # Asterinas-specific preparation (if any)
+    #     :
+    # else
+    #     echo "Error: Unknown system type. Please set SYSTEM to 'linux' or 'asterinas'."
+    #     exit 1
+    # fi
 }
 
 main() {
     # Check if the benchmark name is valid  
-    check_bench_name
+    # check_bench_name
 
     # Prepare the system
     prepare_system
+
+    /bin/sh
     
     # Message to notify the host script. It must align with the READY_MESSAGE in host_guest_bench_runner.sh.
     # DO NOT REMOVE THIS LINE!!!
-    echo "${READY_MESSAGE}"
+    # echo "${READY_MESSAGE}"
 
-    # Run the benchmark
-    BENCH_SCRIPT=${BENCHMARK_DIR}/${BENCH_NAME}/run.sh
-    chmod +x ${BENCH_SCRIPT}
-    ${BENCH_SCRIPT}
+    # # Run the benchmark
+    # BENCH_SCRIPT=${BENCHMARK_DIR}/${BENCH_NAME}/run.sh
+    # chmod +x ${BENCH_SCRIPT}
+    # ${BENCH_SCRIPT}
 
-    # Shutdown explicitly if running on Linux
-    if [ "$SYSTEM" = "linux" ]; then
-        poweroff -f
-    fi
+    # # Shutdown explicitly if running on Linux
+    # if [ "$SYSTEM" = "linux" ]; then
+    #     poweroff -f
+    # fi
 }
 
 main "$@"
