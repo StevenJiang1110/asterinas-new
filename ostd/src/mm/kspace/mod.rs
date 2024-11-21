@@ -110,6 +110,10 @@ pub fn paddr_to_vaddr(pa: Paddr) -> usize {
     pa + LINEAR_MAPPING_BASE_VADDR
 }
 
+pub fn vaddr_to_paddr(va: Vaddr) -> Paddr {
+    va - LINEAR_MAPPING_BASE_VADDR
+}
+
 /// Returns whether the given address should be mapped as tracked.
 ///
 /// About what is tracked mapping, see [`crate::mm::page::meta::MapTrackingStatus`].

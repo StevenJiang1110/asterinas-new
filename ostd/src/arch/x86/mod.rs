@@ -31,12 +31,14 @@ cfg_if! {
 }
 
 use core::{
-    arch::x86_64::{_rdrand64_step, _rdtsc},
+    arch::{asm, x86_64::{_rdrand64_step, _rdtsc}},
     sync::atomic::Ordering,
 };
 
 use kernel::apic::ioapic;
 use log::{info, warn};
+
+use crate::kvm_guest;
 
 #[cfg(feature = "cvm_guest")]
 pub(crate) fn init_cvm_guest() {
@@ -126,6 +128,9 @@ pub(crate) unsafe fn init_on_ap() {
 pub(crate) fn interrupts_ack(irq_number: usize) {
     if !cpu::CpuException::is_cpu_exception(irq_number as u16) {
         kernel::pic::ack();
+        unsafe {
+            kvm_guest::kvm_guest_apic_eoi_write();
+        }
         kernel::apic::with_borrow(|apic| {
             apic.eoi();
         });
