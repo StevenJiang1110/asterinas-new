@@ -36,6 +36,7 @@ pub mod console;
 pub mod cpu;
 mod error;
 pub mod io_mem;
+mod kvm_guest;
 pub mod logger;
 pub mod mm;
 pub mod panic;
@@ -51,6 +52,7 @@ use core::sync::atomic::AtomicBool;
 
 pub use ostd_macros::{main, panic_handler};
 pub use ostd_pod::Pod;
+use x86::msr::rdmsr;
 
 pub use self::{error::Error, prelude::Result};
 
@@ -70,6 +72,16 @@ pub use self::{error::Error, prelude::Result};
 unsafe fn init() {
     arch::enable_cpu_features();
     arch::serial::init();
+
+    const MSR_KVM_EOI_EN: u32 = 0x4b564d04;
+    const MSR_KVM_POLL_CONTROL: u32 = 0x4b564d05;
+    let pv_eoi = rdmsr(MSR_KVM_EOI_EN);
+    let poll_control = rdmsr(MSR_KVM_POLL_CONTROL);
+    early_println!(
+        "pv_eoi = 0x{:x}, poll_control = 0x{:x}",
+        pv_eoi,
+        poll_control
+    );
 
     #[cfg(feature = "cvm_guest")]
     arch::init_cvm_guest();
@@ -96,9 +108,19 @@ unsafe fn init() {
         mm::kspace::activate_kernel_page_table();
     }
 
+    kvm_guest::kvm_guest_cpu_init();
+
     bus::init();
 
     arch::irq::enable_local();
+
+    let pv_eoi = rdmsr(MSR_KVM_EOI_EN);
+    let poll_control = rdmsr(MSR_KVM_POLL_CONTROL);
+    early_println!(
+        "pv_eoi = 0x{:x}, poll_control = 0x{:x}",
+        pv_eoi,
+        poll_control
+    );
 
     invoke_ffi_init_funcs();
 }

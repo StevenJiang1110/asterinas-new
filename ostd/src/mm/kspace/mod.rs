@@ -83,7 +83,7 @@ pub fn kernel_loaded_offset() -> usize {
 }
 
 #[cfg(target_arch = "x86_64")]
-const KERNEL_CODE_BASE_VADDR: usize = 0xffff_ffff_8000_0000 << ADDR_WIDTH_SHIFT;
+pub const KERNEL_CODE_BASE_VADDR: usize = 0xffff_ffff_8000_0000 << ADDR_WIDTH_SHIFT;
 #[cfg(target_arch = "riscv64")]
 const KERNEL_CODE_BASE_VADDR: usize = 0xffff_ffff_0000_0000 << ADDR_WIDTH_SHIFT;
 
@@ -108,6 +108,10 @@ pub const LINEAR_MAPPING_VADDR_RANGE: Range<Vaddr> = LINEAR_MAPPING_BASE_VADDR..
 pub fn paddr_to_vaddr(pa: Paddr) -> usize {
     debug_assert!(pa < VMALLOC_BASE_VADDR - LINEAR_MAPPING_BASE_VADDR);
     pa + LINEAR_MAPPING_BASE_VADDR
+}
+
+pub fn vaddr_to_paddr(va: Vaddr) -> Paddr {
+    va - LINEAR_MAPPING_BASE_VADDR
 }
 
 /// Returns whether the given address should be mapped as tracked.

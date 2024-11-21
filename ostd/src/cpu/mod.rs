@@ -124,5 +124,5 @@ unsafe impl PinCurrentCpu for DisabledPreemptGuard {}
 
 cpu_local_cell! {
     /// The number of the current CPU.
-    static CURRENT_CPU: u32 = u32::MAX;
+    pub static CURRENT_CPU: u32 = u32::MAX;
 }
