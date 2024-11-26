@@ -9,7 +9,7 @@ use core::{
 use bit_field::BitField;
 use spin::Once;
 
-use crate::{cpu::PinCurrentCpu, cpu_local};
+use crate::{cpu::PinCurrentCpu, cpu_local, early_println};
 
 pub mod ioapic;
 pub mod x2apic;
@@ -348,13 +348,13 @@ pub enum DivideConfig {
 
 pub fn init() -> Result<(), ApicInitError> {
     crate::arch::x86::kernel::pic::disable_temp();
-    if x2apic::X2Apic::has_x2apic() {
-        log::info!("x2APIC found!");
-        APIC_TYPE.call_once(|| ApicType::X2Apic);
-        Ok(())
-    } else if xapic::XApic::has_xapic() {
-        log::info!("xAPIC found!");
+    if xapic::XApic::has_xapic() {
+        early_println!("xAPIC found!");
         APIC_TYPE.call_once(|| ApicType::XApic);
+        Ok(())
+    } else if x2apic::X2Apic::has_x2apic() {
+        early_println!("x2APIC found!");
+        APIC_TYPE.call_once(|| ApicType::X2Apic);
         Ok(())
     } else {
         log::warn!("Neither x2APIC nor xAPIC found!");
