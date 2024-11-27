@@ -24,8 +24,7 @@ use crate::{
             apic::{self, DivideConfig},
             tsc::TSC_FREQ,
         },
-    },
-    trap::{IrqLine, TrapFrame},
+    }, early_println, trap::{IrqLine, TrapFrame}
 };
 
 /// Initializes APIC with tsc deadline mode or periodic mode.
@@ -52,6 +51,7 @@ fn is_tsc_deadline_mode_supported() -> bool {
 
 fn init_tsc_mode() -> IrqLine {
     let timer_irq = IrqLine::alloc().unwrap();
+    early_println!("init tsc mode: {}", timer_irq.num());
     // Enable tsc deadline mode
     apic::with_borrow(|apic| {
         apic.set_lvt_timer(timer_irq.num() as u64 | (1 << 18));

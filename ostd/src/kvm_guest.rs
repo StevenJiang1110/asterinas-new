@@ -4,6 +4,7 @@ use core::{
 };
 
 use bitflags::bitflags;
+use bitvec::access::BitAccess;
 use ostd_pod::Pod;
 use x86::{cpuid::cpuid, msr::wrmsr};
 
@@ -51,16 +52,27 @@ pub unsafe fn kvm_guest_cpu_init() {
 }
 
 pub unsafe fn kvm_guest_apic_eoi_write() -> bool {
-    let kvm_apic_eoi =
-        KVM_APIC_EOI.get_on_cpu(CpuId::try_from(CURRENT_CPU.load() as usize).unwrap());
+    let kvm_apic_eoi = &*KVM_APIC_EOI.as_ptr();
 
-    let old_value = kvm_apic_eoi.load(Ordering::Relaxed);
-    if old_value != 0 {
-        early_println!("old_value = {}", kvm_apic_eoi.load(Ordering::Relaxed));
+    // const MASK: u32 = 1;
+    // let old_value = kvm_apic_eoi.load(Ordering::Relaxed);
+    // let new_value = old_value & !MASK;
+    // kvm_apic_eoi.store(new_value, Ordering::Relaxed);
+    // old_value & MASK == 1
+
+    // kvm_apic_eoi.fetch_and(!MASK, Ordering::Relaxed) & MASK == 1
+    test_and_clear_bit(0, kvm_apic_eoi)
+}
+
+unsafe fn test_and_clear_bit(nr: usize, val: &AtomicU32) -> bool {
+    let mask = 1u32 << nr;
+
+    if val.as_ptr().read_volatile() & mask == 0 {
+        return false;
     }
-    kvm_apic_eoi
-        .compare_exchange(1, 0, Ordering::Relaxed, Ordering::Relaxed)
-        .is_ok()
+
+    let old_value = val.fetch_and(!mask, Ordering::Relaxed);
+    old_value & mask != 0
 }
 
 pub unsafe fn is_kvm_guest() -> bool {

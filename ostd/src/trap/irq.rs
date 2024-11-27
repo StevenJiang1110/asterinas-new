@@ -48,6 +48,8 @@ impl IrqLine {
         let Some(irq_num) = IRQ_ALLOCATOR.get().unwrap().lock().alloc() else {
             return Err(Error::NotEnoughResources);
         };
+        use crate::early_println;
+        early_println!("alloc irq = {}", irq_num);
         Ok(Self::new(irq_num as u8))
     }
 
