@@ -1,0 +1,4 @@
+bind 127.0.0.1
+daemonize yes
+protected-mode no
+port 6379
