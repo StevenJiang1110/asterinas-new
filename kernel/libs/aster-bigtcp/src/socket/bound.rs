@@ -119,7 +119,9 @@ impl TcpSocket {
     /// call this method after handling non-closing user events, because the socket can never be
     /// dead if user events can reach the socket.
     fn update_dead(&self, socket: &RawTcpSocketExt) {
-        if socket.in_background && socket.state() == smoltcp::socket::tcp::State::Closed {
+        if socket.in_background && socket.state() == smoltcp::socket::tcp::State::Closed
+            || socket.state() == smoltcp::socket::tcp::State::TimeWait
+        {
             self.is_dead.store(true, Ordering::Relaxed);
         }
     }

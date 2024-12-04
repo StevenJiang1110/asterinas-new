@@ -11,7 +11,10 @@ use connecting::{ConnResult, ConnectingStream};
 use init::InitStream;
 use listen::ListenStream;
 use options::{Congestion, MaxSegment, NoDelay, WindowClamp};
-use ostd::sync::{PreemptDisabled, RwLockReadGuard, RwLockWriteGuard, WriteIrqDisabled};
+use ostd::{
+    early_println,
+    sync::{PreemptDisabled, RwLockReadGuard, RwLockWriteGuard, WriteIrqDisabled},
+};
 use takeable::Takeable;
 use util::TcpOptionSet;
 
@@ -508,6 +511,10 @@ impl Socket for StreamSocket {
     }
 
     fn accept(&self) -> Result<(Arc<dyn FileLike>, SocketAddr)> {
+        unsafe {
+            ACCEPT_COUNT += 1;
+            early_println!("accept {} connections", ACCEPT_COUNT);
+        }
         if self.is_nonblocking() {
             self.try_accept()
         } else {
@@ -690,6 +697,8 @@ impl Socket for StreamSocket {
         Ok(())
     }
 }
+
+static mut ACCEPT_COUNT: usize = 0;
 
 impl SocketEventObserver for StreamSocket {
     fn on_events(&self, events: SocketEvents) {

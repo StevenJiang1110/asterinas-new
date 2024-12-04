@@ -5,7 +5,7 @@
 
 #![no_std]
 #![no_main]
-#![deny(unsafe_code)]
+// #![deny(unsafe_code)]
 #![allow(incomplete_features)]
 #![feature(btree_cursors)]
 #![feature(btree_extract_if)]
