@@ -14,11 +14,12 @@ pub type UnboundUdpSocket = UnboundSocket<RawUdpSocket>;
 
 impl UnboundTcpSocket {
     pub fn new(observer: Weak<dyn SocketEventObserver>) -> Self {
-        let raw_tcp_socket = {
+        let mut raw_tcp_socket = {
             let rx_buffer = smoltcp::socket::tcp::SocketBuffer::new(vec![0u8; TCP_RECV_BUF_LEN]);
             let tx_buffer = smoltcp::socket::tcp::SocketBuffer::new(vec![0u8; TCP_SEND_BUF_LEN]);
             RawTcpSocket::new(rx_buffer, tx_buffer)
         };
+        raw_tcp_socket.set_nagle_enabled(false);
         Self {
             socket: Box::new(raw_tcp_socket),
             observer,

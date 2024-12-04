@@ -511,10 +511,10 @@ impl Socket for StreamSocket {
     }
 
     fn accept(&self) -> Result<(Arc<dyn FileLike>, SocketAddr)> {
-        unsafe {
-            ACCEPT_COUNT += 1;
-            early_println!("accept {} connections", ACCEPT_COUNT);
-        }
+        // unsafe {
+        //     ACCEPT_COUNT += 1;
+        //     early_println!("accept {} connections", ACCEPT_COUNT);
+        // }
         if self.is_nonblocking() {
             self.try_accept()
         } else {
