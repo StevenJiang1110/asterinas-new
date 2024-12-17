@@ -11,10 +11,25 @@ pub use smoltcp::phy::{
 /// method that the caller can use to get the mutable reference without worrying about how the
 /// reference is obtained.
 pub trait WithDevice: Send + Sync {
-    type Device: Device + ?Sized;
+    type Device: Device + ?Sized + NotifyDevice;
 
     /// Calls the closure with a mutable reference of [`Device`].
     fn with<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&mut Self::Device) -> R;
+}
+
+/// A trait for notifying device drivers about the polling process.
+pub trait NotifyDevice {
+    /// Notifies the device driver that polling has started.
+    fn notify_poll_start(&mut self);
+
+    /// Notifies the device driver that polling has ended.
+    fn notify_poll_end(&mut self);
+}
+
+impl NotifyDevice for Loopback {
+    fn notify_poll_start(&mut self) {}
+
+    fn notify_poll_end(&mut self) {}
 }

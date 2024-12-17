@@ -37,6 +37,27 @@ pub struct NetworkDevice {
     tx_buffers: Vec<Option<TxBuffer>>,
     rx_buffers: SlotVec<RxBuffer>,
     transport: Box<dyn VirtioTransport>,
+    poll_stat: PollStatistics,
+}
+
+/// Structure to track the number of packets sent and received during a single polling process.
+struct PollStatistics {
+    sent_packet: usize,
+    received_packet: usize,
+}
+
+impl PollStatistics {
+    const fn new() -> Self {
+        Self {
+            sent_packet: 0,
+            received_packet: 0,
+        }
+    }
+
+    const fn reset(&mut self) {
+        self.sent_packet = 0;
+        self.received_packet = 0;
+    }
 }
 
 impl NetworkDevice {
@@ -102,6 +123,7 @@ impl NetworkDevice {
             tx_buffers,
             rx_buffers,
             transport,
+            poll_stat: PollStatistics::new(),
         };
 
         /// Interrupt handler if network device config space changes
@@ -147,14 +169,13 @@ impl NetworkDevice {
             .add_dma_buf(&[], &[&rx_buffer])
             .map_err(queue_to_network_error)?;
         assert!(self.rx_buffers.put_at(token as usize, rx_buffer).is_none());
-        if self.recv_queue.should_notify() {
-            self.recv_queue.notify();
-        }
+
+        self.poll_stat.received_packet += 1;
+
         Ok(())
     }
 
-    /// Receive a packet from network. If packet is ready, returns a RxBuffer containing the packet.
-    /// Otherwise, return NotReady error.
+    /// Receive a packet from network.
     fn receive(&mut self) -> Result<RxBuffer, VirtioNetError> {
         let (token, len) = self.recv_queue.pop_used().map_err(queue_to_network_error)?;
         debug!("receive packet: token = {}, len = {}", token, len);
@@ -171,8 +192,7 @@ impl NetworkDevice {
         Ok(rx_buffer)
     }
 
-    /// Send a packet to network. Return until the request completes.
-    /// FIEME: Replace tx_buffer with VM segment-based data structure to use dma mapping.
+    /// Send a packet to network.
     fn send(&mut self, packet: &[u8]) -> Result<(), VirtioNetError> {
         if !self.can_send() {
             return Err(VirtioNetError::Busy);
@@ -184,8 +204,15 @@ impl NetworkDevice {
             .send_queue
             .add_dma_buf(&[&tx_buffer], &[])
             .map_err(queue_to_network_error)?;
-        if self.send_queue.should_notify() {
-            self.send_queue.notify();
+
+        self.poll_stat.sent_packet += 1;
+
+        if self.send_queue.available_desc() == 0 {
+            // If send queue is full, we will notify as soon as possible.
+            if self.send_queue.should_notify() {
+                self.send_queue.notify();
+            }
+            self.poll_stat.sent_packet = 0;
         }
 
         debug!("send packet, token = {}, len = {}", token, packet.len());
@@ -286,6 +313,32 @@ impl AnyNetworkDevice for NetworkDevice {
     fn free_processed_tx_buffers(&mut self) {
         while let Ok((token, _)) = self.send_queue.pop_used() {
             self.tx_buffers[token as usize] = None;
+        }
+    }
+
+    fn notify_poll_start(&mut self) {
+        self.poll_stat.reset();
+    }
+
+    fn notify_poll_end(&mut self) {
+        if self.poll_stat.sent_packet > 0 {
+            debug!(
+                "notify send queue: sent {} packets",
+                self.poll_stat.sent_packet
+            );
+            if self.send_queue.should_notify() {
+                self.send_queue.notify();
+            }
+        }
+
+        if self.poll_stat.received_packet > 0 {
+            debug!(
+                "notify receive queue: received {} packets",
+                self.poll_stat.received_packet
+            );
+            if self.recv_queue.should_notify() {
+                self.recv_queue.notify();
+            }
         }
     }
 }
