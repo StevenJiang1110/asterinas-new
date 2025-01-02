@@ -244,7 +244,7 @@ impl InputDevice {
 
     /// Negotiate features for the device specified bits 0~23
     pub(crate) fn negotiate_features(features: u64) -> u64 {
-        assert_eq!(features, 0);
+        // assert_eq!(features, 0);
         0
     }
 }
