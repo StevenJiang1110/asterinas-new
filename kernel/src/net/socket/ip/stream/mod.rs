@@ -15,7 +15,10 @@ use ostd::sync::{PreemptDisabled, RwLockReadGuard, RwLockWriteGuard};
 use takeable::Takeable;
 use util::TcpOptionSet;
 
-use super::UNSPECIFIED_LOCAL_ENDPOINT;
+use super::{
+    options::{IpOptionSet, SetIpLevelOption},
+    UNSPECIFIED_LOCAL_ENDPOINT,
+};
 use crate::{
     events::IoEvents,
     fs::{
@@ -74,14 +77,16 @@ enum State {
 #[derive(Debug, Clone)]
 struct OptionSet {
     socket: SocketOptionSet,
+    ip: IpOptionSet,
     tcp: TcpOptionSet,
 }
 
 impl OptionSet {
     fn new() -> Self {
         let socket = SocketOptionSet::new_tcp();
+        let ip = IpOptionSet::new_tcp();
         let tcp = TcpOptionSet::new();
-        OptionSet { socket, tcp }
+        OptionSet { socket, ip, tcp }
     }
 
     fn raw(&self) -> RawTcpOption {
@@ -658,11 +663,19 @@ impl Socket for StreamSocket {
 
         let options = self.options.read();
 
+        // Deal with socket-level options
         match options.socket.get_option(option) {
             Err(err) if err.error() == Errno::ENOPROTOOPT => (),
             res => return res,
         }
 
+        // Deal with IP-level options
+        match options.ip.get_option(option) {
+            Err(err) if err.error() == Errno::ENOPROTOOPT => (),
+            res => return res,
+        }
+
+        // Deal with TCP-level options
         // FIXME: Here we only return the previously set values, without actually
         // asking the underlying sockets for the real, effective values.
         match_sock_option_mut!(option, {
@@ -695,9 +708,18 @@ impl Socket for StreamSocket {
     fn set_option(&self, option: &dyn SocketOption) -> Result<()> {
         let (mut options, mut state) = self.update_connecting();
 
+        // Deal with socket-level options
         let need_iface_poll = match options.socket.set_option(option, state.as_mut()) {
             Err(err) if err.error() == Errno::ENOPROTOOPT => {
-                do_tcp_setsockopt(option, &mut options, state.as_mut())?
+                // Deal with IP-level options
+                match options.ip.set_option(option, state.as_mut()) {
+                    Err(err) if err.error() == Errno::ENOPROTOOPT => {
+                        // Deal with TCP-level options
+                        do_tcp_setsockopt(option, &mut options, state.as_mut())?
+                    }
+                    Err(err) => return Err(err),
+                    Ok(need_iface_poll) => need_iface_poll,
+                }
             }
             Err(err) => return Err(err),
             Ok(need_iface_poll) => need_iface_poll,
@@ -806,6 +828,15 @@ impl SetSocketLevelOption for State {
 
         self.set_raw_option(set_keepalive)
             .unwrap_or(NeedIfacePoll::FALSE)
+    }
+}
+
+impl SetIpLevelOption for State {
+    fn set_hdrincl(&self, _hdrincl: bool) -> Result<()> {
+        return_errno_with_message!(
+            Errno::ENOPROTOOPT,
+            "IP_HDRINCL cannot be set on TCP sockets"
+        );
     }
 }
 

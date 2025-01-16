@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use core::time::Duration;
+use core::{num::NonZeroU8, time::Duration};
 
 use crate::{
     current_userspace,
-    net::socket::{ip::stream::CongestionControl, LingerOption},
+    net::socket::{
+        ip::{options::IpTtl, stream::CongestionControl},
+        LingerOption,
+    },
     prelude::*,
 };
 
@@ -67,6 +70,7 @@ macro_rules! impl_read_write_for_pod_type {
 }
 
 impl_read_write_for_pod_type!(u32);
+impl_read_write_for_pod_type!(i32);
 
 impl ReadFromUser for bool {
     fn read_from_user(addr: Vaddr, max_len: u32) -> Result<Self> {
@@ -91,6 +95,41 @@ impl WriteToUser for bool {
         let val = if *self { 1i32 } else { 0i32 };
         current_userspace!().write_val(addr, &val)?;
         Ok(write_len)
+    }
+}
+
+impl ReadFromUser for u8 {
+    fn read_from_user(addr: Vaddr, max_len: u32) -> Result<Self> {
+        let val: u32 = u32::read_from_user(addr, max_len)?;
+        Ok((val & 0xff) as u8)
+    }
+}
+
+impl WriteToUser for u8 {
+    fn write_to_user(&self, addr: Vaddr, max_len: u32) -> Result<usize> {
+        let val = *self as u32;
+        val.write_to_user(addr, max_len)
+    }
+}
+
+impl ReadFromUser for IpTtl {
+    fn read_from_user(addr: Vaddr, max_len: u32) -> Result<Self> {
+        let val = i32::read_from_user(addr, max_len)?;
+
+        let ttl_value = match val {
+            -1 => None,
+            1..255 => Some(NonZeroU8::new(val as u8).unwrap()),
+            _ => return_errno_with_message!(Errno::EINVAL, "invalid ttl value"),
+        };
+
+        Ok(IpTtl::new(ttl_value))
+    }
+}
+
+impl WriteToUser for IpTtl {
+    fn write_to_user(&self, addr: Vaddr, max_len: u32) -> Result<usize> {
+        let val = self.get() as i32;
+        val.write_to_user(addr, max_len)
     }
 }
 
